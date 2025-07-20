@@ -15,11 +15,13 @@ export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [gameState, setGameState] = useState<'start' | 'listening' | 'responding' | 'end'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
+  const [promptAudioUrl, setPromptAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const detectionIntervalRef = useRef<NodeJS.Timeout>();
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const responseAudioRef = useRef<HTMLAudioElement>(null);
+  const promptAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
 
   const stopDetection = useCallback(() => {
@@ -37,24 +39,36 @@ export function FriendlyFacesGameClient() {
     setGameState('responding');
     stopDetection();
     try {
-      const { audioUrl: generatedAudioUrl } = await generateSpeech({ text: 'Hello' });
-      setAudioUrl(generatedAudioUrl);
+      const { audioUrl: generatedAudioUrl } = await generateSpeech({ text: 'Hi friend' });
+      setResponseAudioUrl(generatedAudioUrl);
     } catch(e) {
       console.error("Failed to generate speech", e);
+      toast({
+        variant: 'destructive',
+        title: 'Audio Generation Failed',
+        description: 'Could not generate the response audio.'
+      });
       setGameState('end');
     }
-  }, [stopDetection]);
-
+  }, [stopDetection, toast]);
+  
+  // Effect for playing the response audio
   useEffect(() => {
-    if (gameState === 'responding' && audioUrl && audioRef.current) {
-      audioRef.current.play().then(() => {
-        setGameState('end');
-      }).catch(e => {
-        console.error("Failed to play audio", e);
+    if (gameState === 'responding' && responseAudioUrl && responseAudioRef.current) {
+      responseAudioRef.current.play().catch(e => {
+        console.error("Failed to play response audio", e);
         setGameState('end');
       });
     }
-  }, [gameState, audioUrl]);
+  }, [gameState, responseAudioUrl]);
+
+  // Effect for playing the prompt audio
+  useEffect(() => {
+    if (gameState === 'listening' && promptAudioUrl && promptAudioRef.current) {
+      promptAudioRef.current.play().catch(e => console.error("Could not play prompt audio", e));
+    }
+  }, [gameState, promptAudioUrl]);
+
 
   const handleDetection = useCallback(async (audioBlob: Blob) => {
     if (isDetecting) return;
@@ -82,7 +96,6 @@ export function FriendlyFacesGameClient() {
       stopDetection();
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-        mediaRecorderRef.current = null;
       }
     };
 
@@ -116,7 +129,7 @@ export function FriendlyFacesGameClient() {
         };
 
         detectionIntervalRef.current = setInterval(() => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive') {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive' && !isDetecting) {
             mediaRecorderRef.current.start();
             setTimeout(() => {
               if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -139,16 +152,29 @@ export function FriendlyFacesGameClient() {
 
     getMicPermission();
     return cleanup;
-  }, [gameState, toast, stopDetection, handleDetection]);
+  }, [gameState, toast, stopDetection, handleDetection, isDetecting]);
   
-  const handleStart = () => {
+  const handleStart = async () => {
     setGameState('listening');
-    setAudioUrl(null);
+    setResponseAudioUrl(null);
+    try {
+      const { audioUrl: generatedPromptAudio } = await generateSpeech({ text: 'Hello' });
+      setPromptAudioUrl(generatedPromptAudio);
+    } catch(e) {
+      console.error("Failed to generate prompt speech", e);
+      toast({
+        variant: 'destructive',
+        title: 'Audio Generation Failed',
+        description: 'Could not generate the prompt audio.'
+      });
+    }
   };
   
   const handleRestart = () => {
     setGameState('start');
     setHasMicPermission(null);
+    setPromptAudioUrl(null);
+    setResponseAudioUrl(null);
   };
 
   if (gameState === 'start') {
@@ -166,14 +192,14 @@ export function FriendlyFacesGameClient() {
         <h2 className="text-2xl font-bold mb-4">You made a new friend!</h2>
         { gameState === 'responding' && <Progress value={100} className="w-1/2 my-4 animate-pulse" />}
         { gameState === 'end' && <Button onClick={handleRestart} className="mt-4">Play Again</Button> }
-        {audioUrl && <audio ref={audioRef} src={audioUrl} />}
+        {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={() => setGameState('end')} />}
       </div>
     );
   }
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
-      {audioUrl && <audio ref={audioRef} src={audioUrl} />}
+      {promptAudioUrl && <audio ref={promptAudioRef} src={promptAudioUrl} loop />}
 
       <div
         className="absolute inset-0 flex flex-col items-center justify-center"

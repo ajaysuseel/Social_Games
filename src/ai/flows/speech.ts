@@ -42,11 +42,17 @@ const speechFlow = ai.defineFlow(
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: {voiceName: 'Algenib'}, // A standard, light voice
+            // A soft, friendly, and calming female voice
+            prebuiltVoiceConfig: {voiceName: 'Stellifer'}, 
           },
         },
       },
-      prompt: input.text,
+      // Instruct the model on the delivery style for a softer tone.
+      prompt: `<speak>
+        <prosody rate="slow" pitch="-2st">
+          ${input.text}
+        </prosody>
+      </speak>`,
     });
 
     if (!media) {
