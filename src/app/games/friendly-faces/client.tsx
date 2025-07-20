@@ -4,10 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Mic, MicOff, Trophy, Frown, Timer, Sprout } from 'lucide-react';
+import { Mic, MicOff, Trophy, Frown, Timer, Sprout, Smile } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { detectHai } from '@/ai/flows/detect-hai';
+import { motion } from 'framer-motion';
 
 const availableCharacters = [
   { name: 'Friend 1', src: '/videos/friend1.mp4' },
@@ -155,7 +156,7 @@ export function FriendlyFacesGameClient() {
 
         mediaRecorderRef.current.onstop = async () => {
             setIsRecording(false);
-            if (gameState !== 'listening') return;
+            if (gameState !== 'listening' && gameState !== 'analyzing') return;
             
             setGameState('analyzing');
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -290,6 +291,11 @@ export function FriendlyFacesGameClient() {
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <Trophy className="w-16 h-16 text-yellow-400 mb-4" />
         <h2 className="text-2xl font-bold mb-4">You made {friendsMade} new friends!</h2>
+        <div className="flex flex-wrap justify-center gap-2 mt-2">
+          {Array.from({ length: friendsMade }).map((_, i) => (
+            <Smile key={i} className="w-8 h-8 text-yellow-400" />
+          ))}
+        </div>
         <Button onClick={handleRestart} className="mt-4">Play Again</Button>
       </div>
     );
@@ -343,7 +349,17 @@ export function FriendlyFacesGameClient() {
         </div>
       </div>
       
-      {gameState === 'responding' &&  <div className="absolute inset-0 bg-black/20 flex items-center justify-center" /> }
+      {gameState === 'responding' &&  (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+          >
+            <Smile className="w-24 h-24 text-yellow-300" />
+          </motion.div>
+        </div>
+      )}
 
       {(gameState === 'listening' || gameState === 'analyzing') && hasMicPermission !== false && (
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-center gap-2">
