@@ -10,13 +10,13 @@ import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff } from 'lucide-react';
 
 const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
+const promptAudioUrl = '/audio/hello.mp4'; // Using local audio file
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [gameState, setGameState] = useState<'start' | 'listening' | 'responding' | 'end'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
   const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
-  const [promptAudioUrl, setPromptAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const detectionIntervalRef = useRef<NodeJS.Timeout>();
@@ -67,7 +67,7 @@ export function FriendlyFacesGameClient() {
     if (gameState === 'listening' && promptAudioUrl && promptAudioRef.current) {
       promptAudioRef.current.play().catch(e => console.error("Could not play prompt audio", e));
     }
-  }, [gameState, promptAudioUrl]);
+  }, [gameState]);
 
 
   const handleDetection = useCallback(async (audioBlob: Blob) => {
@@ -95,7 +95,10 @@ export function FriendlyFacesGameClient() {
     const cleanup = () => {
       stopDetection();
       if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        const stream = mediaRecorderRef.current.stream;
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
       }
     };
 
@@ -157,23 +160,11 @@ export function FriendlyFacesGameClient() {
   const handleStart = async () => {
     setGameState('listening');
     setResponseAudioUrl(null);
-    try {
-      const { audioUrl: generatedPromptAudio } = await generateSpeech({ text: 'Hello' });
-      setPromptAudioUrl(generatedPromptAudio);
-    } catch(e) {
-      console.error("Failed to generate prompt speech", e);
-      toast({
-        variant: 'destructive',
-        title: 'Audio Generation Failed',
-        description: 'Could not generate the prompt audio.'
-      });
-    }
   };
   
   const handleRestart = () => {
     setGameState('start');
     setHasMicPermission(null);
-    setPromptAudioUrl(null);
     setResponseAudioUrl(null);
   };
 
