@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { detectHello } from '@/ai/flows/detect-hello';
+import { detectHai } from '@/ai/flows/detect-hello';
 import { generateSpeech } from '@/ai/flows/speech';
 import { Mic, MicOff, Volume2, Trophy, Frown, Timer } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -76,7 +76,7 @@ export function FriendlyFacesGameClient() {
     }
   }, [friendsMade, stopDetection, stopAllTimers]);
 
-  const handleHelloDetected = useCallback(async () => {
+  const handleHaiDetected = useCallback(async () => {
     stopDetection();
     setGameState('responding');
     try {
@@ -128,9 +128,9 @@ export function FriendlyFacesGameClient() {
     reader.onloadend = async () => {
       const base64Audio = reader.result as string;
       try {
-        const result = await detectHello({ audioDataUri: base64Audio });
-        if (result.saidHello) {
-          await handleHelloDetected();
+        const result = await detectHai({ audioDataUri: base64Audio });
+        if (result.saidHai) {
+          await handleHaiDetected();
         }
       } catch (error) {
         console.error("Detection failed:", error);
@@ -138,7 +138,7 @@ export function FriendlyFacesGameClient() {
         setIsDetecting(false);
       }
     };
-  }, [isDetecting, handleHelloDetected]);
+  }, [isDetecting, handleHaiDetected]);
 
   const startCharacterTurn = useCallback(() => {
     setResponseAudioUrl(null);
@@ -313,7 +313,7 @@ export function FriendlyFacesGameClient() {
                <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
                     <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
                       {isDetecting ? <Mic className="animate-pulse text-destructive" /> : <Mic />}
-                      Say "Hello" to {currentCharacter.name}!
+                      Say "Hai" to {currentCharacter.name}!
                     </p>
                </div>
           </div>
@@ -336,7 +336,3 @@ export function FriendlyFacesGameClient() {
     </div>
   );
 }
-
-    
-
-    
