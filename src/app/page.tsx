@@ -27,7 +27,7 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-grow flex items-end">
-            <Link href="/games/friendly-faces" passHref className="w-full">
+            <Link href="/games/animal-tap" passHref className="w-full">
               <Button className="w-full">
                 Start Playing <ArrowRight className="ml-2" />
               </Button>

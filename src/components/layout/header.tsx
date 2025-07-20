@@ -26,7 +26,7 @@ import {
 
 const menuItems = [
   { label: 'Dashboard', href: '/', icon: Home },
-  { label: 'Games', icon: Gamepad2, subItems: [{ label: 'Turn-Taking', href: '/games/turn-taking', icon: MousePointer2 }, { label: 'Friendly Faces', href: '/games/friendly-faces', icon: Smile }, { label: 'Animal Tap', href: '/games/animal-tap', icon: Hand }] },
+  { label: 'Games', icon: Gamepad2, subItems: [{ label: 'Animal Tap', href: '/games/animal-tap', icon: Hand }, { label: 'Friendly Faces', href: '/games/friendly-faces', icon: Smile }, { label: 'Turn-Taking', href: '/games/turn-taking', icon: MousePointer2 }] },
   { label: 'Creative Tools', icon: Wand2, subItems: [{ label: 'Character Designer', href: '/tools/character-designer', icon: Cat }, { label: 'Sound Designer', href: '/tools/sound-designer', icon: Music }] },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];

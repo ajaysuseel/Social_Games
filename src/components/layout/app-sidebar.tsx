@@ -33,9 +33,9 @@ const menuItems = [
     icon: Gamepad2,
     subItems: [
       {
-        label: 'Turn-Taking',
-        href: '/games/turn-taking',
-        icon: MousePointer2,
+        label: 'Animal Tap',
+        href: '/games/animal-tap',
+        icon: Hand,
       },
       {
         label: 'Friendly Faces',
@@ -43,9 +43,9 @@ const menuItems = [
         icon: Smile,
       },
       {
-        label: 'Animal Tap',
-        href: '/games/animal-tap',
-        icon: Hand,
+        label: 'Turn-Taking',
+        href: '/games/turn-taking',
+        icon: MousePointer2,
       },
     ],
   },
