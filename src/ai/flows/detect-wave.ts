@@ -36,7 +36,10 @@ const prompt = ai.definePrompt({
   name: 'detectWavePrompt',
   input: {schema: DetectWaveInputSchema},
   output: {schema: DetectWaveOutputSchema},
-  prompt: `You are an expert in gesture recognition. Analyze the provided image and determine if a person in the image is waving their hand. A wave is defined as an open hand raised at or above shoulder level. Only a clear wave should be counted. If no person is visible, or if they are not waving, isWaving should be false.
+  prompt: `You are an expert in gesture recognition. Your task is to determine if a person in the image is waving.
+A wave is defined as a hand raised at or above shoulder level, with fingers likely spread.
+Set isWaving to true only if a clear wave gesture is visible.
+If no person is visible, or if they are not waving as described, isWaving must be false.
 
 Analyze this image: {{media url=photoDataUri}}`,
   config: {
@@ -69,7 +72,7 @@ const detectWaveFlow = ai.defineFlow(
   },
   async input => {
     // If the data URI is empty, don't call the prompt.
-    if (!input.photoDataUri || input.photoDataUri === 'data:,') {
+    if (!input.photoDataUri || input.photoDataUri.length < 100) { // Check for a reasonable length
         return { isWaving: false };
     }
     const {output} = await prompt(input);
