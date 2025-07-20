@@ -99,10 +99,6 @@ export function FriendlyFacesGameClient() {
       <AnimatePresence>
           <motion.div
             key={character.name}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            transition={{ duration: 0.5 }}
             className="absolute inset-0 flex flex-col items-center justify-center"
           >
              <div
@@ -110,7 +106,7 @@ export function FriendlyFacesGameClient() {
              >
               <video
                 key={character.src}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 autoPlay
                 loop
                 muted
