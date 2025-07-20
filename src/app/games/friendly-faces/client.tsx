@@ -50,10 +50,17 @@ export function FriendlyFacesGameClient() {
       timerRef.current = null;
     }
     if (successTimeoutRef.current) {
-        clearTimeout(successTimeoutRef.current);
-        successTimeoutRef.current = null;
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
     }
   }, []);
+
+  const playGreetingSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+    }
+  }, [soundEnabled]);
 
   const nextCharacter = useCallback(() => {
     stopAllTimers();
@@ -64,16 +71,8 @@ export function FriendlyFacesGameClient() {
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
       setTimeLeft(TURN_DURATION);
-      setGameState('playing');
     }
   }, [currentCharacterIndex, numFriends, stopAllTimers]);
-
-  const playGreetingSound = useCallback(() => {
-    if (soundEnabled && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
-    }
-  }, [soundEnabled]);
 
   const handleMakeFriend = () => {
     if (gameState !== 'playing' || showSmile) return;
@@ -107,31 +106,43 @@ export function FriendlyFacesGameClient() {
     setGameState('playing');
   };
 
+  // Initialize Audio
   useEffect(() => {
     if (typeof window !== 'undefined' && !audioRef.current) {
-        audioRef.current = new Audio(GREETING_AUDIO_SRC);
-        audioRef.current.preload = 'auto';
-        audioRef.current.volume = 0.3; // Set volume to 30%
+        const audio = new Audio(GREETING_AUDIO_SRC);
+        audio.preload = 'auto';
+        audio.volume = 0.3; // Set volume to 30%
+        audioRef.current = audio;
     }
   }, []);
-  
+
+  // Game Timer Logic
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
-      playGreetingSound();
-
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             nextCharacter();
-            return 0;
+            return 0; // Return 0 to prevent negative values before interval clears
           }
           return prev - 1;
         });
       }, 1000);
     }
 
-    return () => stopAllTimers();
-  }, [gameState, showSmile, nextCharacter, playGreetingSound, currentCharacterIndex]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [gameState, showSmile, nextCharacter]);
+  
+  // Audio playback on character change
+  useEffect(() => {
+      if (gameState === 'playing' && currentCharacter) {
+          playGreetingSound();
+      }
+  }, [gameState, currentCharacter, playGreetingSound]);
 
 
   const handleRestart = () => {
