@@ -94,7 +94,7 @@ export function FriendlyFacesGameClient() {
   }
 
   return (
-    <div className="relative w-full aspect-square max-w-2xl mx-auto bg-gray-900 rounded-lg overflow-hidden">
+    <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" autoPlay muted playsInline />
       <AnimatePresence>
           <motion.div
