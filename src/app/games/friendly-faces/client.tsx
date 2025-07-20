@@ -26,7 +26,7 @@ const availableCharacters = [
 ];
 
 const GREETING_AUDIO_SRC = '/audio/hai.mp3';
-const TURN_DURATION = 7; // in seconds
+const TURN_DURATION = 6; // in seconds
 
 export function FriendlyFacesGameClient() {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'paused' | 'win'>('start');
@@ -66,7 +66,9 @@ export function FriendlyFacesGameClient() {
     stopAllTimers();
     setShowSmile(false);
 
-    if (currentCharacterIndex + 1 >= numFriends) {
+    const isLastCharacter = currentCharacterIndex >= numFriends - 1;
+
+    if (isLastCharacter) {
       setGameState('win');
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
@@ -142,7 +144,7 @@ export function FriendlyFacesGameClient() {
       if (gameState === 'playing' && currentCharacter) {
           playGreetingSound();
       }
-  }, [gameState, currentCharacter, playGreetingSound]);
+  }, [gameState, currentCharacterIndex, playGreetingSound]); // Depend on index
 
 
   const handleRestart = () => {
