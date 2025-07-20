@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
-import { Timer, Rabbit, Turtle } from 'lucide-react';
+import { Timer, Rabbit } from 'lucide-react';
 
 const animals = [
   { name: 'Cat', src: '/images/animal-tap/cat.png' },
@@ -16,6 +16,7 @@ const animals = [
 ];
 
 const GAME_DURATION = 30; // in seconds
+const TIME_UNTIL_MOVE = 3000; // in milliseconds
 
 type AnimalOnScreen = {
   id: number;
@@ -24,6 +25,7 @@ type AnimalOnScreen = {
   x: number;
   y: number;
   size: number;
+  isMoving: boolean;
 };
 
 export function AnimalTapClient() {
@@ -31,9 +33,10 @@ export function AnimalTapClient() {
   const [animalsOnScreen, setAnimalsOnScreen] = useState<AnimalOnScreen[]>([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
-  const { soundEnabled, animationsEnabled } = useSettings();
+  const { soundEnabled } = useSettings();
   const gameIntervalRef = useRef<NodeJS.Timeout>();
   const timerIntervalRef = useRef<NodeJS.Timeout>();
+  const movementTimeoutsRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   const playSound = useCallback((type: 'pop' | 'end') => {
     if (!soundEnabled) return;
@@ -43,11 +46,13 @@ export function AnimalTapClient() {
     
     if (type === 'pop') {
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(440 + Math.random() * 200, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
+      oscillator.frequency.setValueAtTime(300 + Math.random() * 200, audioContext.currentTime); // Lowered frequency for softer sound
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.4);
     } else if (type === 'end') {
       oscillator.type = 'triangle';
       oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 1);
     }
 
@@ -64,18 +69,34 @@ export function AnimalTapClient() {
       ...randomAnimal,
       x: 10 + Math.random() * 80,
       y: 10 + Math.random() * 80,
-      size: 60 + Math.random() * 60,
+      size: 40 + Math.random() * 40, // Smaller animals
+      isMoving: false,
     };
-    setAnimalsOnScreen((prev) => [...prev, newAnimal].slice(-10)); // Max 10 animals
+
+    const timeout = setTimeout(() => {
+      setAnimalsOnScreen((prev) =>
+        prev.map((a) => (a.id === newAnimal.id ? { ...a, isMoving: true } : a))
+      );
+      movementTimeoutsRef.current.delete(newAnimal.id);
+    }, TIME_UNTIL_MOVE);
+
+    movementTimeoutsRef.current.set(newAnimal.id, timeout);
+    setAnimalsOnScreen((prev) => [...prev, newAnimal].slice(-15)); // Max 15 animals
   }, []);
+
+  const clearAllTimeouts = () => {
+      movementTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
+      movementTimeoutsRef.current.clear();
+  };
 
   const startGame = () => {
     setGameState('playing');
     setScore(0);
     setTimeLeft(GAME_DURATION);
     setAnimalsOnScreen([]);
+    clearAllTimeouts();
 
-    gameIntervalRef.current = setInterval(addAnimal, 1200);
+    gameIntervalRef.current = setInterval(addAnimal, 1000); // Faster appearance
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
@@ -84,6 +105,7 @@ export function AnimalTapClient() {
   const endGame = useCallback(() => {
     clearInterval(gameIntervalRef.current);
     clearInterval(timerIntervalRef.current);
+    clearAllTimeouts();
     setGameState('end');
     playSound('end');
   }, [playSound]);
@@ -98,11 +120,16 @@ export function AnimalTapClient() {
     return () => {
       clearInterval(gameIntervalRef.current);
       clearInterval(timerIntervalRef.current);
+      clearAllTimeouts();
     };
   }, []);
 
 
   const handleAnimalTap = (id: number) => {
+    if (movementTimeoutsRef.current.has(id)) {
+        clearTimeout(movementTimeoutsRef.current.get(id));
+        movementTimeoutsRef.current.delete(id);
+    }
     playSound('pop');
     setAnimalsOnScreen((prev) => prev.filter((a) => a.id !== id));
     setScore((prev) => prev + 1);
@@ -146,9 +173,16 @@ export function AnimalTapClient() {
           <motion.div
             key={animal.id}
             initial={{ scale: 0, rotate: (Math.random() - 0.5) * 45 }}
-            animate={{ scale: 1, rotate: 0 }}
+            animate={{ 
+                scale: 1, 
+                rotate: 0,
+                ...(animal.isMoving ? { 
+                    x: (Math.random() - 0.5) * 200, 
+                    y: (Math.random() - 0.5) * 200,
+                } : {})
+            }}
             exit={{ scale: 0, opacity: 0, transition: { duration: 0.2 }}}
-            transition={{ type: 'spring', stiffness: 260, damping: 15 }}
+            transition={{ type: 'spring', stiffness: 100, damping: 20 }}
             className="absolute cursor-pointer drop-shadow-lg"
             style={{
               width: animal.size,
@@ -164,6 +198,7 @@ export function AnimalTapClient() {
               width={animal.size}
               height={animal.size}
               data-ai-hint="animal character"
+              className="pointer-events-none"
             />
           </motion.div>
         ))}
