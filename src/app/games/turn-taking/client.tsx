@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RefreshCw } from 'lucide-react';
+import { Play, Pause, RefreshCw, Timer } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,7 @@ const players = {
 
 const BUBBLES_PER_TURN = 3;
 const GAME_ROUNDS = 2;
+const TURN_DURATION = 10; // 10 seconds per turn
 
 const bubbleColors = [
   'bg-blue-200/70 border-blue-300/90',
@@ -54,7 +55,15 @@ export function BubbleHarmonyGame() {
   const [round, setRound] = useState(1);
   const [showTurnIndicator, setShowTurnIndicator] = useState(false);
   const { soundEnabled } = useSettings();
-  const turnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [turnTimeLeft, setTurnTimeLeft] = useState(TURN_DURATION);
+  
+  const turnSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const turnTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopAllTimers = useCallback(() => {
+    if (turnSwitchTimeoutRef.current) clearTimeout(turnSwitchTimeoutRef.current);
+    if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+  }, []);
 
   const playSound = useCallback((type: 'pop' | 'reward' | 'turn') => {
     if (!soundEnabled) return;
@@ -100,31 +109,51 @@ export function BubbleHarmonyGame() {
     }
     setBubbles(newBubbles);
   }, []);
-
+  
+  const handleTurnEnd = useCallback(() => {
+      stopAllTimers();
+      turnSwitchTimeoutRef.current = setTimeout(() => {
+        if (currentPlayer === 'P2') {
+          if (round < GAME_ROUNDS) {
+            setRound(r => r + 1);
+            setCurrentPlayer('P1');
+          } else {
+            setGameState('end');
+            playSound('reward');
+            return;
+          }
+        } else {
+          setCurrentPlayer('P2');
+        }
+        setTapsLeft(BUBBLES_PER_TURN);
+        setTurnTimeLeft(TURN_DURATION);
+        generateBubbles();
+        setShowTurnIndicator(true);
+        playSound('turn');
+      }, 1500);
+  },[currentPlayer, round, playSound, generateBubbles, stopAllTimers]);
+  
   const handleStartGame = () => {
+    stopAllTimers();
     setScores({ P1: 0, P2: 0 });
     setRound(1);
     setCurrentPlayer('P1');
     setTapsLeft(BUBBLES_PER_TURN);
+    setTurnTimeLeft(TURN_DURATION);
     generateBubbles();
     setGameState('playing');
     setShowTurnIndicator(true);
-    if(turnTimeoutRef.current) clearTimeout(turnTimeoutRef.current);
   };
   
   const handlePause = () => {
     if (gameState !== 'playing') return;
-    if(turnTimeoutRef.current) clearTimeout(turnTimeoutRef.current);
+    stopAllTimers();
     setGameState('paused');
   }
 
   const handleResume = () => {
     if (gameState !== 'paused') return;
     setGameState('playing');
-    // If it was in the middle of a turn switch, re-trigger it
-    if (tapsLeft === 0) {
-      handleTurnEnd();
-    }
   }
 
   const handleBubbleTap = (id: number) => {
@@ -135,29 +164,21 @@ export function BubbleHarmonyGame() {
     setTapsLeft((prev) => prev - 1);
   };
 
-  const handleTurnEnd = useCallback(() => {
-     turnTimeoutRef.current = setTimeout(() => {
-        if (currentPlayer === 'P2') {
-          if (round < GAME_ROUNDS) {
-            setRound(r => r + 1);
-            setCurrentPlayer('P1');
-            setTapsLeft(BUBBLES_PER_TURN);
-            generateBubbles();
-            setShowTurnIndicator(true);
-            playSound('turn');
-          } else {
-            setGameState('end');
-            playSound('reward');
-          }
-        } else {
-          setCurrentPlayer('P2');
-          setTapsLeft(BUBBLES_PER_TURN);
-          generateBubbles();
-          setShowTurnIndicator(true);
-          playSound('turn');
-        }
-      }, 1500);
-  },[currentPlayer, round, playSound, generateBubbles]);
+  useEffect(() => {
+    if (gameState === 'playing') {
+      if (turnTimeLeft <= 0) {
+        handleTurnEnd();
+      } else {
+        turnTimerRef.current = setInterval(() => {
+          setTurnTimeLeft(t => t - 1);
+        }, 1000);
+      }
+    }
+    return () => {
+      if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+    };
+  }, [gameState, turnTimeLeft, handleTurnEnd]);
+
 
   useEffect(() => {
     if (tapsLeft === 0 && gameState === 'playing') {
@@ -174,11 +195,9 @@ export function BubbleHarmonyGame() {
   
    useEffect(() => {
     return () => {
-      if (turnTimeoutRef.current) {
-        clearTimeout(turnTimeoutRef.current);
-      }
+      stopAllTimers();
     };
-  }, []);
+  }, [stopAllTimers]);
 
 
   if (gameState === 'start') {
@@ -272,7 +291,13 @@ export function BubbleHarmonyGame() {
             <div className={`w-8 h-8 rounded-full ${players.P2.color} border-4 ${currentPlayer === 'P2' && gameState==='playing' ? 'border-primary' : 'border-transparent'}`}></div>
            </div>
         </div>
-        <Progress value={(BUBBLES_PER_TURN - tapsLeft) / BUBBLES_PER_TURN * 100} className="mt-2 h-2" />
+        <div className="flex items-center justify-center mt-2 gap-4">
+            <Progress value={(BUBBLES_PER_TURN - tapsLeft) / BUBBLES_PER_TURN * 100} className="h-2 flex-1" />
+            <div className="flex items-center gap-1 text-sm font-bold bg-white/50 dark:bg-black/50 px-3 py-1 rounded-full">
+                <Timer className="w-4 h-4"/>
+                <span>{turnTimeLeft}s</span>
+            </div>
+        </div>
       </div>
 
       <AnimatePresence>
