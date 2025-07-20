@@ -58,7 +58,15 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
   }, [gameState, currentAnimal, isLoading, loadNextAnimal]);
 
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing') {
+      // Clean up camera stream when not playing
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      return;
+    }
 
     const getCameraPermission = async () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -91,6 +99,7 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
     getCameraPermission();
 
     return () => {
+      // This cleanup runs when the component unmounts or gameState changes from 'playing'
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
@@ -108,11 +117,14 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
     setAnimalIndex(0);
     setCurrentAnimal(null);
   };
-
+  
   const handleRestart = () => {
     setGameState('start');
+    setCurrentAnimal(null);
+    setAnimalIndex(0);
     setHasCameraPermission(null);
   };
+
 
   if (gameState === 'start') {
     return (
