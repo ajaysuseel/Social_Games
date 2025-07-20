@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,7 +54,7 @@ export function BubbleHarmonyGame() {
   const [round, setRound] = useState(1);
   const [showTurnIndicator, setShowTurnIndicator] = useState(false);
   const { soundEnabled } = useSettings();
-  const turnTimeoutRef = useCallback(useRef<NodeJS.Timeout | null>(null), []);
+  const turnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const playSound = useCallback((type: 'pop' | 'reward' | 'turn') => {
     if (!soundEnabled) return;
@@ -178,7 +178,7 @@ export function BubbleHarmonyGame() {
         clearTimeout(turnTimeoutRef.current);
       }
     };
-  }, [turnTimeoutRef]);
+  }, []);
 
 
   if (gameState === 'start') {
