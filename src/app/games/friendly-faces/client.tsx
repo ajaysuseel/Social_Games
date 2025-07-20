@@ -217,16 +217,29 @@ export function FriendlyFacesGameClient() {
       {gameState === 'playing' && (
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-center gap-2">
                <p className="font-bold text-white text-center bg-black/30 backdrop-blur-sm py-2 px-4 rounded-full">
-                  Click the button to greet your new friend!
+                  Click the moving hand to greet your new friend!
                </p>
-                <Button 
-                    onClick={handleMakeFriend} 
-                    disabled={showSmile}
-                    size="lg"
-                    className="rounded-full w-24 h-24"
+                <motion.div
+                    animate={{
+                        x: [-100, 100, -100],
+                        y: [0, -50, 0],
+                    }}
+                    transition={{
+                        duration: 8,
+                        ease: "easeInOut",
+                        repeat: Infinity,
+                        repeatType: "mirror",
+                    }}
                 >
-                    <Hand className="w-8 h-8" />
-                </Button>
+                    <Button 
+                        onClick={handleMakeFriend} 
+                        disabled={showSmile}
+                        size="icon"
+                        className="rounded-full w-16 h-16"
+                    >
+                        <Hand className="w-6 h-6" />
+                    </Button>
+                </motion.div>
           </div>
       )}
     </div>
