@@ -23,7 +23,7 @@ import {
 
 const menuItems = [
   { label: 'Dashboard', href: '/', icon: Home },
-  { label: 'Games', icon: Gamepad2, subItems: [{ label: 'Animal Tap', href: '/games/animal-tap', icon: Hand }, { label: 'Friendly Faces', href: '/games/friendly-faces', icon: Smile }, { label: 'Turn-Taking', href: '/games/turn-taking', icon: MousePointer2 }] },
+  { label: 'Games', href: '/games', icon: Gamepad2, subItems: [{ label: 'Animal Tap', href: '/games/animal-tap', icon: Hand }, { label: 'Friendly Faces', href: '/games/friendly-faces', icon: Smile }, { label: 'Bubble Harmony', href: '/games/turn-taking', icon: MousePointer2 }] },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -54,10 +54,10 @@ export function Header() {
                 <Accordion type="single" collapsible className="w-full" key={item.label}>
                   <AccordionItem value={item.label} className="border-b-0">
                     <AccordionTrigger className="hover:no-underline font-normal text-lg">
-                      <div className="flex items-center gap-3">
+                      <Link href={item.href!} className="flex items-center gap-3">
                         <item.icon className="w-5 h-5" />
                         {item.label}
-                      </div>
+                      </Link>
                     </AccordionTrigger>
                     <AccordionContent className="pl-8 pt-2 flex flex-col gap-2">
                       {item.subItems.map(subItem => (

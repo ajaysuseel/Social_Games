@@ -6,9 +6,10 @@ import {
   MousePointer2,
   Smile,
   Hand,
+  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import {
   Accordion,
@@ -27,6 +28,7 @@ const menuItems = [
   },
   {
     label: 'Games',
+    href: '/games',
     icon: Gamepad2,
     subItems: [
       {
@@ -40,7 +42,7 @@ const menuItems = [
         icon: Smile,
       },
       {
-        label: 'Turn-Taking',
+        label: 'Bubble Harmony',
         href: '/games/turn-taking',
         icon: MousePointer2,
       },
@@ -55,13 +57,16 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isSubItemActive = (subItems: { href: string }[]) => {
     return subItems.some((item) => pathname === item.href);
   };
+  
+  const isGamesRootActive = pathname === '/games';
 
   const defaultAccordionValue = menuItems
-    .filter((item) => item.subItems && isSubItemActive(item.subItems))
+    .filter((item) => item.subItems && (isSubItemActive(item.subItems) || isGamesRootActive))
     .map((item) => item.label);
 
   return (
@@ -79,10 +84,13 @@ export function AppSidebar() {
           {menuItems.map((item) =>
             item.subItems ? (
               <AccordionItem value={item.label} key={item.label} className="border-b-0">
-                <AccordionTrigger className={cn(
-                  "py-2 px-3 rounded-md hover:no-underline hover:bg-muted font-normal",
-                  isSubItemActive(item.subItems) && "font-semibold bg-muted"
-                )}>
+                <AccordionTrigger
+                  className={cn(
+                    'py-2 px-3 rounded-md hover:no-underline hover:bg-muted font-normal',
+                    (isSubItemActive(item.subItems) || isGamesRootActive) && 'font-semibold bg-muted'
+                  )}
+                  onClick={() => router.push(item.href!)}
+                >
                   <div className="flex items-center gap-3">
                     <item.icon className="w-5 h-5" />
                     {item.label}

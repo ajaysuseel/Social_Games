@@ -9,7 +9,7 @@ export default function TurnTakingPage() {
           Bubble Harmony
         </h1>
         <p className="text-muted-foreground text-lg">
-          Take turns popping bubbles to make collaborative music. A game for practicing turn-taking.
+          Take turns popping bubbles. A game for practicing turn-taking.
         </p>
       </header>
       <Card>
