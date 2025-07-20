@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { detectHai } from '@/ai/flows/detect-hello';
 import { Mic, MicOff, Trophy, Frown, Timer } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -22,7 +21,7 @@ const RESPONSE_AUDIO_PATH = '/audio/hi-friend.mp3';
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [gameState, setGameState] = useState<'start' | 'listening' | 'responding' | 'win' | 'lose'>('start');
-  const [isDetecting, setIsDetecting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [friendsMade, setFriendsMade] = useState(0);
@@ -32,9 +31,7 @@ export function FriendlyFacesGameClient() {
   const [gameCharacters, setGameCharacters] = useState<{name: string; src: string}[]>([]);
 
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const detectionIntervalRef = useRef<NodeJS.Timeout>();
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const gameTimerRef = useRef<NodeJS.Timeout>();
   const characterTimerRef = useRef<NodeJS.Timeout>();
   const responseAudioRef = useRef<HTMLAudioElement>(null);
@@ -46,22 +43,17 @@ export function FriendlyFacesGameClient() {
   const stopAllTimers = useCallback(() => {
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
     if (characterTimerRef.current) clearInterval(characterTimerRef.current);
-    if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current);
   }, []);
 
-  const stopDetection = useCallback(() => {
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = undefined;
+  const stopListening = useCallback(() => {
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
     }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsDetecting(false);
+    setIsListening(false);
   }, []);
   
   const nextCharacter = useCallback(() => {
-    stopDetection();
+    stopListening();
     if (characterTimerRef.current) clearInterval(characterTimerRef.current);
 
     const newFriendsCount = friendsMade + 1;
@@ -75,13 +67,13 @@ export function FriendlyFacesGameClient() {
       setCharacterTimeLeft(TIME_PER_CHARACTER);
       setGameState('listening');
     }
-  }, [friendsMade, stopDetection, stopAllTimers, numFriends]);
+  }, [friendsMade, stopListening, stopAllTimers, numFriends]);
 
   const handleHaiDetected = useCallback(async () => {
-    stopDetection();
+    stopListening();
     setGameState('responding');
     setResponseAudioUrl(RESPONSE_AUDIO_PATH);
-  }, [stopDetection]);
+  }, [stopListening]);
   
   useEffect(() => {
     if (gameState === 'responding' && responseAudioUrl && responseAudioRef.current) {
@@ -112,27 +104,6 @@ export function FriendlyFacesGameClient() {
     }
   }, [gameState, currentCharacterIndex]);
 
-  const handleDetection = useCallback(async (audioBlob: Blob) => {
-    if (isDetecting) return;
-    setIsDetecting(true);
-
-    const reader = new FileReader();
-    reader.readAsDataURL(audioBlob);
-    reader.onloadend = async () => {
-      const base64Audio = reader.result as string;
-      try {
-        const result = await detectHai({ audioDataUri: base64Audio });
-        if (result.saidHai) {
-          await handleHaiDetected();
-        }
-      } catch (error) {
-        console.error("Detection failed:", error);
-      } finally {
-        setIsDetecting(false);
-      }
-    };
-  }, [isDetecting, handleHaiDetected]);
-
   const startCharacterTurn = useCallback(() => {
     setResponseAudioUrl(null);
     characterTimerRef.current = setInterval(() => {
@@ -158,58 +129,83 @@ export function FriendlyFacesGameClient() {
 
   useEffect(() => {
     const cleanup = () => {
-      stopDetection();
-      stopAllTimers();
-      if (mediaRecorderRef.current) {
-        const stream = mediaRecorderRef.current.stream;
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-      }
+        stopListening();
+        stopAllTimers();
     };
 
     if (gameState !== 'listening') {
-      stopDetection();
-      return;
+        stopListening();
+        return;
     }
 
-    const getMicPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast({ variant: 'destructive', title: 'Microphone Not Supported' });
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        toast({ variant: 'destructive', title: 'Speech Recognition Not Supported' });
         setHasMicPermission(false);
         return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setHasMicPermission(true);
+    }
+    
+    const getMicPermissionAndListen = async () => {
+        try {
+            // Check for permission without prompting if possible
+            const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+            if (permissionStatus.state === 'denied') {
+                 throw new Error('Microphone access denied');
+            }
+            
+            // This will prompt for permission if not already granted
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop()); // We don't need the stream directly, just the permission
 
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
-        mediaRecorderRef.current.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          handleDetection(audioBlob);
-          audioChunksRef.current = [];
-        };
+            setHasMicPermission(true);
+            
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            speechRecognitionRef.current = recognition;
 
-        detectionIntervalRef.current = setInterval(() => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive' && !isDetecting) {
-            mediaRecorderRef.current.start();
-            setTimeout(() => {
-              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop();
-            }, 2000);
-          }
-        }, 3000);
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript.trim().toLowerCase();
+                    if (transcript.includes('hai') || transcript.includes('hi')) {
+                        handleHaiDetected();
+                    }
+                }
+            };
+            
+            recognition.onstart = () => {
+                setIsListening(true);
+            };
 
-      } catch (error) {
-        console.error('Error accessing microphone:', error);
-        setHasMicPermission(false);
-        toast({ variant: 'destructive', title: 'Microphone Access Denied' });
-      }
+            recognition.onend = () => {
+                setIsListening(false);
+                // Restart recognition if we are still in listening state
+                if (gameState === 'listening') {
+                    recognition.start();
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error', event.error);
+                if (event.error === 'not-allowed') {
+                    setHasMicPermission(false);
+                    toast({ variant: 'destructive', title: 'Microphone Access Denied' });
+                }
+            };
+
+            recognition.start();
+
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            setHasMicPermission(false);
+            toast({ variant: 'destructive', title: 'Microphone Access Required' });
+        }
     };
-
-    getMicPermission();
+    
+    getMicPermissionAndListen();
     return cleanup;
-  }, [gameState, toast, stopDetection, handleDetection, isDetecting, stopAllTimers]);
+  }, [gameState, toast, stopListening, handleHaiDetected, stopAllTimers]);
   
   const handleStart = async () => {
     // Generate a random list of characters for this game session
@@ -323,7 +319,7 @@ export function FriendlyFacesGameClient() {
           <div className="absolute bottom-4 left-4 right-4 z-20">
                <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
                     <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
-                      {isDetecting ? <Mic className="animate-pulse text-destructive" /> : <Mic />}
+                      {isListening ? <Mic className="animate-pulse text-destructive" /> : <Mic />}
                       Say "Hai" to make a friend!
                     </p>
                </div>
