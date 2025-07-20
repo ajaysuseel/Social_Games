@@ -7,6 +7,7 @@ import {
   Cat,
   Music,
   MousePointer2,
+  Smile,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -34,6 +35,11 @@ const menuItems = [
         label: 'Turn-Taking',
         href: '/games/turn-taking',
         icon: MousePointer2,
+      },
+      {
+        label: 'Friendly Faces',
+        href: '/games/friendly-faces',
+        icon: Smile,
       },
     ],
   },
