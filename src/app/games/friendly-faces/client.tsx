@@ -211,7 +211,7 @@ export function FriendlyFacesGameClient() {
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
-      {promptAudioUrl && <audio ref={promptAudioRef} src={promptAudioUrl} loop />}
+      {promptAudioUrl && <audio ref={promptAudioRef} src={promptAudioUrl} />}
       {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={() => setGameState('end')} />}
 
       <div
