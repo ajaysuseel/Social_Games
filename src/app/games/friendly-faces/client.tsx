@@ -1,25 +1,17 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hand } from 'lucide-react';
 
-const animals = [
-  { name: 'Dog', src: '/videos/dog.mp4' },
-  { name: 'Cat', src: '/videos/cat.mp4' },
-  { name: 'Bear', src: '/videos/bear.mp4' },
-  { name: 'Rabbit', src: '/videos/rabbit.mp4' },
-  { name: 'Fox', src: '/videos/fox.mp4' },
-];
+const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
 
 export function FriendlyFacesGameClient() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
-  const [animalIndex, setAnimalIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const animalVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -71,35 +63,22 @@ export function FriendlyFacesGameClient() {
   }, [gameState, toast]);
 
   const handleWaveBack = () => {
-    const nextIndex = animalIndex + 1;
-    if (nextIndex < animals.length) {
-      setAnimalIndex(nextIndex);
-    } else {
-      setGameState('end');
-    }
+    setGameState('end');
   };
   
   const handleStart = () => {
-    setAnimalIndex(0);
     setGameState('playing');
   };
   
   const handleRestart = () => {
     setGameState('start');
-    setAnimalIndex(0);
     setHasCameraPermission(null);
   };
-
-  useEffect(() => {
-    if(animalVideoRef.current){
-        animalVideoRef.current.load();
-    }
-  }, [animalIndex])
 
   if (gameState === 'start') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
-        <h2 className="text-2xl font-bold mb-4">Ready to make new friends?</h2>
+        <h2 className="text-2xl font-bold mb-4">Ready to make a new friend?</h2>
         <Button onClick={handleStart}>Start Game</Button>
       </div>
     );
@@ -108,44 +87,48 @@ export function FriendlyFacesGameClient() {
   if (gameState === 'end') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
-        <h2 className="text-2xl font-bold mb-4">You made so many friends!</h2>
+        <h2 className="text-2xl font-bold mb-4">You made a new friend!</h2>
         <Button onClick={handleRestart}>Play Again</Button>
       </div>
     );
   }
-  
-  const currentAnimal = animals[animalIndex];
 
   return (
     <div className="relative w-full aspect-square max-w-2xl mx-auto bg-gray-900 rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" autoPlay muted playsInline />
       <AnimatePresence>
-        {currentAnimal && (
           <motion.div
-            key={currentAnimal.name + animalIndex}
+            key={character.name}
             initial={{ opacity: 0, scale: 0.5, y: 100 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.5, y: -100 }}
             transition={{ duration: 0.5 }}
             className="absolute inset-0 flex flex-col items-center justify-center p-4"
           >
-            <div
-              className="w-48 h-48 md:w-64 md:h-64 relative drop-shadow-2xl"
-            >
+             <motion.div
+                className="w-48 h-48 md:w-64 md:h-64 relative drop-shadow-2xl"
+                animate={{
+                    rotate: [0, 10, -5, 10, 0],
+                    transition: {
+                        duration: 2,
+                        ease: "easeInOut",
+                        repeat: Infinity,
+                        repeatDelay: 1,
+                    },
+                }}
+             >
               <video
-                ref={animalVideoRef}
-                key={currentAnimal.src}
+                key={character.src}
                 className="w-full h-full object-contain"
                 autoPlay
                 loop
                 muted
                 playsInline
               >
-                  <source src={currentAnimal.src} type="video/mp4" />
+                  <source src={character.src} type="video/mp4" />
               </video>
-            </div>
+            </motion.div>
           </motion.div>
-        )}
       </AnimatePresence>
 
       <div className="absolute bottom-4 left-4 right-4 flex justify-center">
