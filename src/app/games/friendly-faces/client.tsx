@@ -66,12 +66,17 @@ export function FriendlyFacesGameClient() {
     stopAllTimers();
     setShowSmile(false);
     
-    if (currentCharacterIndex >= numFriends - 1) {
-      setGameState('win');
-    } else {
-      setCurrentCharacterIndex(prev => prev + 1);
-      setTimeLeft(TURN_DURATION);
-    }
+    setGameState(prevState => {
+      if (prevState !== 'playing' && prevState !== 'paused') return prevState;
+      
+      if (currentCharacterIndex < numFriends - 1) {
+        setCurrentCharacterIndex(prev => prev + 1);
+        setTimeLeft(TURN_DURATION);
+        return 'playing';
+      } else {
+        return 'win';
+      }
+    });
   }, [currentCharacterIndex, numFriends, stopAllTimers]);
 
   const handleMakeFriend = () => {
@@ -88,6 +93,7 @@ export function FriendlyFacesGameClient() {
   };
   
   const handleStart = () => {
+    stopAllTimers();
     const randomizedCharacters: {name: string; src: string}[] = [];
     let lastCharacterIndex = -1;
 
@@ -122,7 +128,7 @@ export function FriendlyFacesGameClient() {
     if (gameState === 'playing' && currentCharacter) {
       playGreetingSound();
     }
-  }, [gameState, currentCharacter, playGreetingSound]);
+  }, [gameState, currentCharacterIndex, playGreetingSound]);
 
 
   useEffect(() => {
@@ -130,12 +136,15 @@ export function FriendlyFacesGameClient() {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
+            clearInterval(timerRef.current!);
             nextCharacter();
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
+    } else {
+        if(timerRef.current) clearInterval(timerRef.current);
     }
     return () => {
       if (timerRef.current) {
