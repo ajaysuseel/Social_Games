@@ -1,14 +1,22 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from 'next-themes';
 import { useSettings } from '@/hooks/use-settings';
 import { Moon, Sun } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SettingsPage() {
+  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   const { soundEnabled, setSoundEnabled, animationsEnabled, setAnimationsEnabled } = useSettings();
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -32,12 +40,16 @@ export default function SettingsPage() {
               <Label htmlFor="theme-switch">Light / Dark Mode</Label>
               <Moon className="w-5 h-5" />
             </div>
-            <Switch
-              id="theme-switch"
-              checked={theme === 'dark'}
-              onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-              aria-label="Toggle theme"
-            />
+            {mounted ? (
+              <Switch
+                id="theme-switch"
+                checked={theme === 'dark'}
+                onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                aria-label="Toggle theme"
+              />
+            ) : (
+              <Skeleton className="h-6 w-11 rounded-full" />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -49,21 +61,29 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <Label htmlFor="sound-switch">Enable Sounds</Label>
-            <Switch
-              id="sound-switch"
-              checked={soundEnabled}
-              onCheckedChange={setSoundEnabled}
-              aria-label="Toggle sounds"
-            />
+             {mounted ? (
+              <Switch
+                id="sound-switch"
+                checked={soundEnabled}
+                onCheckedChange={setSoundEnabled}
+                aria-label="Toggle sounds"
+              />
+             ) : (
+               <Skeleton className="h-6 w-11 rounded-full" />
+             )}
           </div>
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <Label htmlFor="animation-switch">Enable Animations</Label>
-            <Switch
-              id="animation-switch"
-              checked={animationsEnabled}
-              onCheckedChange={setAnimationsEnabled}
-              aria-label="Toggle animations"
-            />
+            {mounted ? (
+              <Switch
+                id="animation-switch"
+                checked={animationsEnabled}
+                onCheckedChange={setAnimationsEnabled}
+                aria-label="Toggle animations"
+              />
+            ) : (
+              <Skeleton className="h-6 w-11 rounded-full" />
+            )}
           </div>
         </CardContent>
       </Card>
