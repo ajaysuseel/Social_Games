@@ -38,6 +38,7 @@ export function FriendlyFacesGameClient() {
   const responseAudioRef = useRef<HTMLAudioElement>(null);
   const promptAudioRef = useRef<HTMLAudioElement>(null);
   const recordingTimeoutRef = useRef<NodeJS.Timeout>();
+  const analysisTimeoutRef = useRef<NodeJS.Timeout>();
 
   const { toast } = useToast();
   
@@ -47,6 +48,7 @@ export function FriendlyFacesGameClient() {
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
     if (characterTimerRef.current) clearInterval(characterTimerRef.current);
     if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+    if (analysisTimeoutRef.current) clearTimeout(analysisTimeoutRef.current);
   }, []);
   
   const stopRecording = useCallback(() => {
@@ -54,6 +56,7 @@ export function FriendlyFacesGameClient() {
         mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
+    if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
   }, []);
 
   const nextCharacter = useCallback(() => {
@@ -116,11 +119,15 @@ export function FriendlyFacesGameClient() {
     } else {
         if (characterTimerRef.current) clearInterval(characterTimerRef.current);
     }
+    
+    return () => {
+      if (characterTimerRef.current) clearInterval(characterTimerRef.current);
+    }
   }, [gameState, currentCharacterIndex]);
 
   useEffect(() => {
     if (gameTimeLeft <= 0 || characterTimeLeft < 0) {
-        if (gameState === 'listening' || gameState === 'responding' || gameState === 'analyzing') {
+        if (['listening', 'responding', 'analyzing'].includes(gameState)) {
             setGameState('lose');
             stopAllTimers();
             stopRecording();
@@ -128,81 +135,75 @@ export function FriendlyFacesGameClient() {
     }
   }, [gameTimeLeft, characterTimeLeft, gameState, stopAllTimers, stopRecording]);
 
+  const startRecording = useCallback(async () => {
+    if (isRecording || gameState !== 'listening') return;
 
-  // Handle Audio Recording and AI call
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setHasMicPermission(true);
+
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        setIsRecording(false);
+        setGameState('analyzing');
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          try {
+            const { saidHai } = await detectHai({ audioDataUri: base64Audio });
+            if (saidHai) {
+              handleHaiDetected();
+            } else {
+              // If hai not detected, go back to listening if time permits
+              analysisTimeoutRef.current = setTimeout(() => {
+                if (characterTimeLeft > 0) {
+                   setGameState('listening');
+                }
+              }, 1000); // Wait a second before allowing another recording
+            }
+          } catch (error) {
+            console.error("Error detecting hai:", error);
+            toast({ variant: 'destructive', title: 'AI Error', description: 'Could not analyze audio.' });
+            setGameState('listening');
+          }
+        };
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+
+      // Automatically stop recording after a duration
+      recordingTimeoutRef.current = setTimeout(() => {
+        stopRecording();
+      }, RECORDING_DURATION);
+
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      setHasMicPermission(false);
+      toast({ variant: 'destructive', title: 'Microphone Access Required' });
+    }
+  }, [isRecording, gameState, stopRecording, handleHaiDetected, characterTimeLeft, toast]);
+  
   useEffect(() => {
-    const cleanup = () => {
-        stopRecording();
-        stopAllTimers();
-    };
-
-    if (gameState !== 'listening') {
-        stopRecording();
-        return;
+    if (gameState === 'listening' && !isRecording) {
+      startRecording();
     }
 
-    const startRecording = async () => {
-        try {
-            const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-            if (permissionStatus.state === 'denied') {
-                 throw new Error('Microphone access denied');
-            }
+    return () => {
+      stopAllTimers();
+      stopRecording();
+    }
+  }, [gameState, isRecording, startRecording, stopAllTimers, stopRecording]);
 
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            setHasMicPermission(true);
-
-            mediaRecorderRef.current = new MediaRecorder(stream);
-            audioChunksRef.current = [];
-
-            mediaRecorderRef.current.ondataavailable = (event) => {
-                audioChunksRef.current.push(event.data);
-            };
-
-            mediaRecorderRef.current.onstop = async () => {
-                setGameState('analyzing');
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.readAsDataURL(audioBlob);
-                reader.onloadend = async () => {
-                    const base64Audio = reader.result as string;
-                    try {
-                        const { saidHai } = await detectHai({ audioDataUri: base64Audio });
-                        if (saidHai) {
-                            handleHaiDetected();
-                        } else {
-                            // If hai not detected, go back to listening if time permits
-                            if (characterTimeLeft > 0) {
-                                setGameState('listening');
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error detecting hai:", error);
-                        toast({ variant: 'destructive', title: 'AI Error', description: 'Could not analyze audio.' });
-                        setGameState('listening');
-                    }
-                };
-            };
-            
-            mediaRecorderRef.current.start();
-            setIsRecording(true);
-
-            // Automatically stop recording after a duration
-            recordingTimeoutRef.current = setTimeout(() => {
-                stopRecording();
-            }, RECORDING_DURATION);
-
-        } catch (error) {
-            console.error('Error accessing microphone:', error);
-            setHasMicPermission(false);
-            toast({ variant: 'destructive', title: 'Microphone Access Required' });
-        }
-    };
-
-    startRecording();
-    return cleanup;
-
-  }, [gameState, toast, stopRecording, handleHaiDetected, stopAllTimers, characterTimeLeft]);
-  
   const handleStart = async () => {
     const randomizedCharacters: {name: string; src: string}[] = [];
     let lastCharacterIndex = -1;
@@ -238,10 +239,10 @@ export function FriendlyFacesGameClient() {
   };
 
   const getStatusMessage = () => {
-    if (gameState === 'listening' && isRecording) {
+    if (isRecording) {
       return { icon: <Mic className="animate-pulse text-destructive" />, text: 'Listening...' };
     }
-     if (gameState === 'analyzing') {
+    if (gameState === 'analyzing') {
       return { icon: <Sprout className="animate-spin" />, text: 'Analyzing...' };
     }
     return { icon: <Mic />, text: 'Say "Hai" to make a friend!' };
@@ -330,10 +331,9 @@ export function FriendlyFacesGameClient() {
       
       {gameState === 'responding' &&  <div className="absolute inset-0 bg-black/20 flex items-center justify-center" /> }
 
-
-      {(gameState === 'listening' || gameState === 'analyzing') && hasMicPermission && (
+      {(gameState === 'listening' || gameState === 'analyzing') && hasMicPermission !== false && (
           <div className="absolute bottom-4 left-4 right-4 z-20">
-               <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
+               <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center cursor-pointer" onClick={startRecording}>
                     <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
                         {status.icon}
                         {status.text}
