@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { motion } from 'framer-motion';
 import { detectWave } from '@/ai/flows/detect-wave';
 import { generateSpeech } from '@/ai/flows/speech';
 import { Progress } from '@/components/ui/progress';
@@ -174,7 +173,7 @@ export function FriendlyFacesGameClient() {
       <canvas ref={canvasRef} className="hidden" />
       {audioUrl && <audio ref={audioRef} src={audioUrl} />}
 
-      <motion.div
+      <div
         className="absolute inset-0 flex flex-col items-center justify-center"
       >
         <div className="w-full h-full relative">
@@ -189,7 +188,7 @@ export function FriendlyFacesGameClient() {
             <source src={character.src} type="video/mp4" />
           </video>
         </div>
-      </motion.div>
+      </div>
 
       {gameState === 'playing' && hasCameraPermission && (
           <div className="absolute bottom-4 left-4 right-4 z-20">
