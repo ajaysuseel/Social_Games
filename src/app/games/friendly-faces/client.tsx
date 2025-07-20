@@ -19,12 +19,12 @@ const characters = [
 
 const GAME_DURATION = 60; // Total seconds for the game
 const TIME_PER_CHARACTER = 12; // Seconds per character
+const PROMPT_AUDIO_PATH = '/audio/hello.mp3'; // Path to your static audio file
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'generating_prompt' | 'listening' | 'responding' | 'win' | 'lose'>('start');
+  const [gameState, setGameState] = useState<'start' | 'listening' | 'responding' | 'win' | 'lose'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
-  const [promptAudioUrl, setPromptAudioUrl] = useState<string | null>(null);
   const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [friendsMade, setFriendsMade] = useState(0);
@@ -72,7 +72,7 @@ export function FriendlyFacesGameClient() {
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
       setCharacterTimeLeft(TIME_PER_CHARACTER);
-      setGameState('generating_prompt');
+      setGameState('listening');
     }
   }, [friendsMade, stopDetection, stopAllTimers]);
 
@@ -103,7 +103,7 @@ export function FriendlyFacesGameClient() {
   }, [gameState, responseAudioUrl, nextCharacter]);
 
   useEffect(() => {
-    if (gameState === 'listening' && promptAudioUrl && promptAudioRef.current) {
+    if (gameState === 'listening' && promptAudioRef.current) {
       const playPrompt = () => {
         if (promptAudioRef.current) {
             promptAudioRef.current.currentTime = 0;
@@ -114,7 +114,7 @@ export function FriendlyFacesGameClient() {
       const promptInterval = setInterval(playPrompt, 6000);
       return () => clearInterval(promptInterval);
     }
-  }, [gameState, promptAudioUrl]);
+  }, [gameState, currentCharacterIndex]);
 
   const handleDetection = useCallback(async (audioBlob: Blob) => {
     if (isDetecting) return;
@@ -137,32 +137,15 @@ export function FriendlyFacesGameClient() {
     };
   }, [isDetecting, handleHelloDetected]);
 
-  const startCharacterTurn = useCallback(async () => {
-    setGameState('generating_prompt');
+  const startCharacterTurn = useCallback(() => {
     setResponseAudioUrl(null);
-    setPromptAudioUrl(null);
-
-     characterTimerRef.current = setInterval(() => {
-        setCharacterTimeLeft(prev => prev - 1);
+    characterTimerRef.current = setInterval(() => {
+      setCharacterTimeLeft(prev => prev - 1);
     }, 1000);
-
-    try {
-      const { audioUrl } = await generateSpeech({ text: 'Hello' });
-      setPromptAudioUrl(audioUrl);
-      setGameState('listening');
-    } catch (e) {
-      console.error("Failed to generate prompt audio", e);
-      toast({
-        variant: 'destructive',
-        title: 'Audio Generation Failed',
-        description: 'Could not generate the initial prompt audio.'
-      });
-      setGameState('lose');
-    }
-  }, [toast]);
+  }, []);
   
   useEffect(() => {
-    if (gameState === 'generating_prompt') {
+    if (gameState === 'listening') {
         startCharacterTurn();
     }
   }, [gameState, currentCharacterIndex, startCharacterTurn]);
@@ -170,7 +153,7 @@ export function FriendlyFacesGameClient() {
   // Game Timers Logic
   useEffect(() => {
     if (gameTimeLeft <= 0 || characterTimeLeft < 0) {
-        if (gameState === 'listening' || gameState === 'generating_prompt' || gameState === 'responding') {
+        if (gameState === 'listening' || gameState === 'responding') {
             setGameState('lose');
             stopAllTimers();
         }
@@ -237,7 +220,7 @@ export function FriendlyFacesGameClient() {
     setCurrentCharacterIndex(0);
     setGameTimeLeft(GAME_DURATION);
     setCharacterTimeLeft(TIME_PER_CHARACTER);
-    setGameState('generating_prompt');
+    setGameState('listening');
     
     gameTimerRef.current = setInterval(() => {
         setGameTimeLeft(prev => prev - 1);
@@ -249,7 +232,6 @@ export function FriendlyFacesGameClient() {
     setGameState('start');
     setHasMicPermission(null);
     setResponseAudioUrl(null);
-    setPromptAudioUrl(null);
   };
 
   if (gameState === 'start') {
@@ -283,11 +265,11 @@ export function FriendlyFacesGameClient() {
     );
   }
 
-  const isGameRunning = ['generating_prompt', 'listening', 'responding'].includes(gameState);
+  const isGameRunning = ['listening', 'responding'].includes(gameState);
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
-      {promptAudioUrl && <audio ref={promptAudioRef} src={promptAudioUrl} />}
+      <audio ref={promptAudioRef} src={PROMPT_AUDIO_PATH} />
       {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={nextCharacter} />}
 
       <div className="absolute top-4 left-4 right-4 z-20 space-y-2">
@@ -316,12 +298,6 @@ export function FriendlyFacesGameClient() {
                 >
                     <source src={currentCharacter.src} type="video/mp4" />
                 </video>
-            )}
-             {gameState === 'generating_prompt' && (
-                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
-                    <Volume2 className="w-12 h-12 text-primary animate-pulse mb-4" />
-                    <h2 className="text-xl font-bold text-white">Getting ready...</h2>
-                </div>
             )}
         </div>
       </div>
@@ -357,3 +333,5 @@ export function FriendlyFacesGameClient() {
     </div>
   );
 }
+
+    
