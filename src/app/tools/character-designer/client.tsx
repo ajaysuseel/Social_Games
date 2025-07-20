@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useActionState } from 'react';
 import Image from 'next/image';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,9 @@ import type { CharacterDesignOutput } from '@/ai/flows/character-design';
 type FormState = {
   data?: CharacterDesignOutput;
   error?: string;
-} | undefined;
+};
+
+const initialState: FormState = {};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -35,12 +37,11 @@ function SubmitButton() {
 }
 
 type CharacterDesignerClientProps = {
-  handleGenerateCharacter: (formData: FormData) => Promise<FormState>;
+  handleGenerateCharacter: (prevState: FormState, formData: FormData) => Promise<FormState>;
 };
 
 export function CharacterDesignerClient({ handleGenerateCharacter }: CharacterDesignerClientProps) {
-  const [state, formAction] = useFormState(handleGenerateCharacter, undefined);
-  const { pending } = useFormStatus();
+  const [state, formAction, pending] = useActionState(handleGenerateCharacter, initialState);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

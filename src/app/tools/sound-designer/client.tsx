@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,9 @@ import type { CalmingSoundOutput } from '@/ai/flows/sound-design';
 type FormState = {
   data?: CalmingSoundOutput;
   error?: string;
-} | undefined;
+};
+
+const initialState: FormState = {};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -33,12 +36,11 @@ function SubmitButton() {
 }
 
 type SoundDesignerClientProps = {
-  handleGenerateSound: (formData: FormData) => Promise<FormState>;
+  handleGenerateSound: (prevState: FormState, formData: FormData) => Promise<FormState>;
 };
 
 export function SoundDesignerClient({ handleGenerateSound }: SoundDesignerClientProps) {
-  const [state, formAction] = useFormState(handleGenerateSound, undefined);
-  const { pending } = useFormStatus();
+  const [state, formAction, pending] = useActionState(handleGenerateSound, initialState);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

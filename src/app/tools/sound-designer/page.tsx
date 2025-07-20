@@ -2,7 +2,7 @@
 import { generateCalmingSound } from '@/ai/flows/sound-design';
 import { SoundDesignerClient } from './client';
 
-async function handleGenerateSound(formData: FormData) {
+async function handleGenerateSound(prevState: any, formData: FormData) {
   'use server';
   const theme = formData.get('theme') as string;
   const activity = formData.get('activity') as string;

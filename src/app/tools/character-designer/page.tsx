@@ -2,7 +2,7 @@
 import { generateCharacter } from '@/ai/flows/character-design';
 import { CharacterDesignerClient } from './client';
 
-async function handleGenerateCharacter(formData: FormData) {
+async function handleGenerateCharacter(prevState: any, formData: FormData) {
   'use server';
   const animalType = formData.get('animalType') as string;
   if (!animalType) {
