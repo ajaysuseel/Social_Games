@@ -5,19 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { detectHai } from '@/ai/flows/detect-hello';
-import { Mic, MicOff, Volume2, Trophy, Frown, Timer } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { Mic, MicOff, Trophy, Frown, Timer } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
-const characters = [
+const availableCharacters = [
   { name: 'Friend 1', src: '/videos/friend1.mp4' },
   { name: 'Friend 2', src: '/videos/friend2.mp4' },
   { name: 'Friend 3', src: '/videos/friend3.mp4' },
 ];
 
-const GAME_DURATION = 60; // Total seconds for the game
-const TIME_PER_CHARACTER = 12; // Seconds per character
+const TIME_PER_CHARACTER = 10; // Seconds per character
 const PROMPT_AUDIO_PATH = '/audio/hai.mp3';
-const RESPONSE_AUDIO_PATH = '/audio/hi-friend.mp3'; // Path for static response
+const RESPONSE_AUDIO_PATH = '/audio/hi-friend.mp3';
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
@@ -26,8 +26,11 @@ export function FriendlyFacesGameClient() {
   const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [friendsMade, setFriendsMade] = useState(0);
-  const [gameTimeLeft, setGameTimeLeft] = useState(GAME_DURATION);
+  const [gameTimeLeft, setGameTimeLeft] = useState(0);
   const [characterTimeLeft, setCharacterTimeLeft] = useState(TIME_PER_CHARACTER);
+  const [numFriends, setNumFriends] = useState(3);
+  const [gameCharacters, setGameCharacters] = useState<{name: string; src: string}[]>([]);
+
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -38,7 +41,7 @@ export function FriendlyFacesGameClient() {
   const promptAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   
-  const currentCharacter = characters[currentCharacterIndex];
+  const currentCharacter = gameCharacters[currentCharacterIndex];
 
   const stopAllTimers = useCallback(() => {
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
@@ -64,7 +67,7 @@ export function FriendlyFacesGameClient() {
     const newFriendsCount = friendsMade + 1;
     setFriendsMade(newFriendsCount);
 
-    if (newFriendsCount === characters.length) {
+    if (newFriendsCount === numFriends) {
       setGameState('win');
       stopAllTimers();
     } else {
@@ -72,7 +75,7 @@ export function FriendlyFacesGameClient() {
       setCharacterTimeLeft(TIME_PER_CHARACTER);
       setGameState('listening');
     }
-  }, [friendsMade, stopDetection, stopAllTimers]);
+  }, [friendsMade, stopDetection, stopAllTimers, numFriends]);
 
   const handleHaiDetected = useCallback(async () => {
     stopDetection();
@@ -209,9 +212,15 @@ export function FriendlyFacesGameClient() {
   }, [gameState, toast, stopDetection, handleDetection, isDetecting, stopAllTimers]);
   
   const handleStart = async () => {
+    // Generate a random list of characters for this game session
+    const randomizedCharacters = Array.from({ length: numFriends }, () => {
+        return availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+    });
+    setGameCharacters(randomizedCharacters);
+
     setFriendsMade(0);
     setCurrentCharacterIndex(0);
-    setGameTimeLeft(GAME_DURATION);
+    setGameTimeLeft(numFriends * TIME_PER_CHARACTER);
     setCharacterTimeLeft(TIME_PER_CHARACTER);
     setGameState('listening');
     
@@ -229,10 +238,23 @@ export function FriendlyFacesGameClient() {
 
   if (gameState === 'start') {
     return (
-      <div className="flex flex-col items-center justify-center p-8 h-96">
+      <div className="flex flex-col items-center justify-center p-8 h-full">
         <h2 className="text-2xl font-bold mb-4">Ready to make new friends?</h2>
-        <p className="text-muted-foreground mb-6 text-center">You'll have {GAME_DURATION} seconds to greet all {characters.length} friends.</p>
-        <Button onClick={handleStart}>Start Game</Button>
+        <div className="flex flex-col items-center gap-4 mb-6">
+            <Label htmlFor="num-friends-select">How many friends do you want to meet?</Label>
+            <Select value={String(numFriends)} onValueChange={(value) => setNumFriends(Number(value))}>
+                <SelectTrigger id="num-friends-select" className="w-[180px]">
+                    <SelectValue placeholder="Number of friends" />
+                </SelectTrigger>
+                <SelectContent>
+                    {[...Array(9)].map((_, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>{i + 1} friend{i > 0 ? 's' : ''}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-center">Total time: {numFriends * TIME_PER_CHARACTER} seconds</p>
+        </div>
+        <Button onClick={handleStart} size="lg">Start Game</Button>
       </div>
     );
   }
@@ -252,13 +274,13 @@ export function FriendlyFacesGameClient() {
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <Frown className="w-16 h-16 text-destructive mb-4" />
         <h2 className="text-2xl font-bold mb-4">Time's up!</h2>
-        <p className="text-muted-foreground">You made friends with {friendsMade} out of {characters.length}.</p>
+        <p className="text-muted-foreground">You made friends with {friendsMade} out of {numFriends}.</p>
         <Button onClick={handleRestart} className="mt-4">Try Again</Button>
       </div>
     );
   }
 
-  const isGameRunning = ['listening', 'responding'].includes(gameState);
+  const isGameRunning = ['listening', 'responding'].includes(gameState) && currentCharacter;
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
@@ -267,7 +289,7 @@ export function FriendlyFacesGameClient() {
 
       <div className="absolute top-4 left-4 right-4 z-20 space-y-2">
          <div className="flex justify-between items-center bg-black/30 backdrop-blur-sm p-3 rounded-full text-white font-bold">
-            <div>Friends Made: {friendsMade} / {characters.length}</div>
+            <div>Friends Made: {friendsMade} / {numFriends}</div>
             <div className="flex items-center gap-2"><Timer />{gameTimeLeft}s</div>
          </div>
          {isGameRunning && (
@@ -281,7 +303,7 @@ export function FriendlyFacesGameClient() {
         <div className="absolute inset-0 flex flex-col items-center justify-center">
             {isGameRunning && (
                 <video
-                    key={currentCharacter.src}
+                    key={currentCharacter.src + currentCharacterIndex}
                     className="w-full h-full object-contain"
                     autoPlay
                     loop
@@ -302,7 +324,7 @@ export function FriendlyFacesGameClient() {
                <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
                     <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
                       {isDetecting ? <Mic className="animate-pulse text-destructive" /> : <Mic />}
-                      Say "Hai" to {currentCharacter.name}!
+                      Say "Hai" to make a friend!
                     </p>
                </div>
           </div>
