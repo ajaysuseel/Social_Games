@@ -204,9 +204,19 @@ export function FriendlyFacesGameClient() {
   }, [gameState, toast, stopRecording, handleHaiDetected, stopAllTimers, characterTimeLeft]);
   
   const handleStart = async () => {
-    const randomizedCharacters = Array.from({ length: numFriends }, () => {
-        return availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-    });
+    const randomizedCharacters: {name: string; src: string}[] = [];
+    let lastCharacterIndex = -1;
+
+    for (let i = 0; i < numFriends; i++) {
+        let nextCharacterIndex;
+        do {
+            nextCharacterIndex = Math.floor(Math.random() * availableCharacters.length);
+        } while (availableCharacters.length > 1 && nextCharacterIndex === lastCharacterIndex);
+        
+        randomizedCharacters.push(availableCharacters[nextCharacterIndex]);
+        lastCharacterIndex = nextCharacterIndex;
+    }
+    
     setGameCharacters(randomizedCharacters);
 
     setFriendsMade(0);
