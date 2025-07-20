@@ -4,19 +4,20 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { detectWave } from '@/ai/flows/detect-wave';
+import { detectHello } from '@/ai/flows/detect-hello';
 import { generateSpeech } from '@/ai/flows/speech';
 import { Progress } from '@/components/ui/progress';
+import { Mic, MicOff } from 'lucide-react';
 
 const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
 
 export function FriendlyFacesGameClient() {
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
+  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
+  const [gameState, setGameState] = useState<'start' | 'listening' | 'responding' | 'end'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const detectionIntervalRef = useRef<NodeJS.Timeout>();
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
@@ -26,127 +27,128 @@ export function FriendlyFacesGameClient() {
       clearInterval(detectionIntervalRef.current);
       detectionIntervalRef.current = undefined;
     }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
     setIsDetecting(false);
   }, []);
 
-  const handleWaveDetected = useCallback(async () => {
+  const handleHelloDetected = useCallback(async () => {
+    setGameState('responding');
+    stopDetection();
     try {
       const { audioUrl: generatedAudioUrl } = await generateSpeech({ text: 'Hello' });
       setAudioUrl(generatedAudioUrl);
     } catch(e) {
       console.error("Failed to generate speech", e);
-      // Fallback or just end the game
       setGameState('end');
     }
-  }, []);
+  }, [stopDetection]);
 
   useEffect(() => {
-    if (audioUrl && audioRef.current) {
+    if (gameState === 'responding' && audioUrl && audioRef.current) {
       audioRef.current.play().then(() => {
         setGameState('end');
       }).catch(e => {
         console.error("Failed to play audio", e);
-        setGameState('end'); // Still end the game
+        setGameState('end');
       });
     }
-  }, [audioUrl]);
+  }, [gameState, audioUrl]);
 
-  const handleDetection = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || isDetecting) return;
-
+  const handleDetection = useCallback(async (audioBlob: Blob) => {
+    if (isDetecting) return;
     setIsDetecting(true);
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const photoDataUri = canvas.toDataURL('image/jpeg');
-      
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = async () => {
+      const base64Audio = reader.result as string;
       try {
-        const result = await detectWave({ photoDataUri });
-        if (result.isWaving) {
-          stopDetection();
-          await handleWaveDetected();
+        const result = await detectHello({ audioDataUri: base64Audio });
+        if (result.saidHello) {
+          await handleHelloDetected();
         }
       } catch (error) {
         console.error("Detection failed:", error);
-        // Do not stop detection on error, just log it. The user can try again.
+      } finally {
+        setIsDetecting(false);
       }
-    }
-    setIsDetecting(false);
-  }, [isDetecting, stopDetection, handleWaveDetected]);
-
-  useEffect(() => {
-    if (gameState === 'playing' && hasCameraPermission) {
-      detectionIntervalRef.current = setInterval(handleDetection, 5000); // Check every 5 seconds
-    } else {
-      stopDetection();
-    }
-
-    return () => {
-      stopDetection();
     };
-  }, [gameState, hasCameraPermission, handleDetection, stopDetection]);
+  }, [isDetecting, handleHelloDetected]);
 
   useEffect(() => {
     const cleanup = () => {
       stopDetection();
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        mediaRecorderRef.current = null;
       }
     };
 
-    if (gameState !== 'playing') {
+    if (gameState !== 'listening') {
       cleanup();
       return;
     }
 
-    const getCameraPermission = async () => {
+    const getMicPermission = async () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast({
           variant: 'destructive',
-          title: 'Camera Not Supported',
-          description: 'Your browser does not support camera access.',
+          title: 'Microphone Not Supported',
+          description: 'Your browser does not support microphone access.',
         });
-        setHasCameraPermission(false);
+        setHasMicPermission(false);
         return;
       }
-
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setHasCameraPermission(true);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setHasMicPermission(true);
+
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          handleDetection(audioBlob);
+          audioChunksRef.current = [];
+        };
+
+        detectionIntervalRef.current = setInterval(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive') {
+            mediaRecorderRef.current.start();
+            setTimeout(() => {
+              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                mediaRecorderRef.current.stop();
+              }
+            }, 2000); // Record for 2 seconds
+          }
+        }, 3000); // Check every 3 seconds
+
       } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
+        console.error('Error accessing microphone:', error);
+        setHasMicPermission(false);
         toast({
           variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to continue.',
+          title: 'Microphone Access Denied',
+          description: 'Please enable microphone permissions in your browser settings.',
         });
       }
     };
 
-    getCameraPermission();
-
+    getMicPermission();
     return cleanup;
-  }, [gameState, toast, stopDetection]);
+  }, [gameState, toast, stopDetection, handleDetection]);
   
   const handleStart = () => {
-    setGameState('playing');
+    setGameState('listening');
     setAudioUrl(null);
   };
   
   const handleRestart = () => {
     setGameState('start');
-    setHasCameraPermission(null);
+    setHasMicPermission(null);
   };
 
   if (gameState === 'start') {
@@ -158,19 +160,19 @@ export function FriendlyFacesGameClient() {
     );
   }
 
-  if (gameState === 'end') {
+  if (gameState === 'end' || gameState === 'responding') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <h2 className="text-2xl font-bold mb-4">You made a new friend!</h2>
-        <Button onClick={handleRestart}>Play Again</Button>
+        { gameState === 'responding' && <Progress value={100} className="w-1/2 my-4 animate-pulse" />}
+        { gameState === 'end' && <Button onClick={handleRestart} className="mt-4">Play Again</Button> }
+        {audioUrl && <audio ref={audioRef} src={audioUrl} />}
       </div>
     );
   }
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
-      <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] hidden" autoPlay muted playsInline />
-      <canvas ref={canvasRef} className="hidden" />
       {audioUrl && <audio ref={audioRef} src={audioUrl} />}
 
       <div
@@ -190,21 +192,24 @@ export function FriendlyFacesGameClient() {
         </div>
       </div>
 
-      {gameState === 'playing' && hasCameraPermission && (
+      {gameState === 'listening' && hasMicPermission && (
           <div className="absolute bottom-4 left-4 right-4 z-20">
                <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
-                    <p className="font-bold text-card-foreground">Wave to the character to say hello!</p>
-                    {isDetecting && <Progress value={100} className="h-1 mt-2 animate-pulse" />}
+                    <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
+                      {isDetecting ? <Mic className="animate-pulse text-destructive" /> : <Mic />}
+                      Say "Hello" to the character!
+                    </p>
                </div>
           </div>
       )}
 
-      {hasCameraPermission === false && (
+      {hasMicPermission === false && (
         <div className="absolute inset-0 bg-black/70 flex items-center justify-center p-4">
           <Alert variant="destructive" className="max-w-md">
-            <AlertTitle>Camera Access Required</AlertTitle>
+            <MicOff className="h-4 w-4" />
+            <AlertTitle>Microphone Access Required</AlertTitle>
             <AlertDescription>
-              This game needs camera access to work. Please allow camera access in your browser and try again.
+              This game needs microphone access to work. Please allow microphone access in your browser and try again.
               <Button onClick={handleRestart} className="mt-4 w-full">
                 Back to Start
               </Button>
