@@ -198,7 +198,7 @@ export function AnimalTapClient() {
               width={animal.size}
               height={animal.size}
               data-ai-hint="animal character"
-              className="pointer-events-none"
+              className="pointer-events-none rounded-full object-cover w-full h-full"
             />
           </motion.div>
         ))}
