@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Gamepad2, Wand2, Settings, ArrowRight } from 'lucide-react';
+import { Gamepad2, Settings, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   return (
@@ -15,7 +15,7 @@ export default function DashboardPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
@@ -31,26 +31,6 @@ export default function DashboardPage() {
               <Button className="w-full">
                 Start Playing <ArrowRight className="ml-2" />
               </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-              <Wand2 className="w-8 h-8 text-accent" />
-              <span className="font-headline">Creative Tools</span>
-            </CardTitle>
-            <CardDescription>
-              Use AI to design your own non-scary characters and generate calming sounds for a truly personalized experience.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-grow flex flex-col gap-2">
-            <Link href="/tools/character-designer" passHref>
-              <Button variant="secondary" className="w-full justify-start">Character Designer</Button>
-            </Link>
-            <Link href="/tools/sound-designer" passHref>
-              <Button variant="secondary" className="w-full justify-start">Sound Designer</Button>
             </Link>
           </CardContent>
         </Card>

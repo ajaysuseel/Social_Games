@@ -2,10 +2,7 @@
 import {
   Home,
   Gamepad2,
-  Wand2,
   Settings,
-  Cat,
-  Music,
   MousePointer2,
   Smile,
   Hand,
@@ -46,22 +43,6 @@ const menuItems = [
         label: 'Turn-Taking',
         href: '/games/turn-taking',
         icon: MousePointer2,
-      },
-    ],
-  },
-  {
-    label: 'Creative Tools',
-    icon: Wand2,
-    subItems: [
-      {
-        label: 'Character Designer',
-        href: '/tools/character-designer',
-        icon: Cat,
-      },
-      {
-        label: 'Sound Designer',
-        href: '/tools/sound-designer',
-        icon: Music,
       },
     ],
   },
