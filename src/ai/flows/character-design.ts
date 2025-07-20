@@ -146,7 +146,7 @@ const characterVideoFlow = ai.defineFlow(
       throw new Error(`failed to generate video: ${operation.error.message}`);
     }
 
-    const videoPart = operation.output?.message?.content.find(p => p.media && p.media.contentType === 'video/mp4');
+    const videoPart = operation.output?.message?.content.find(p => p.media);
     if (!videoPart || !videoPart.media) {
       throw new Error('Failed to find the generated video in the operation result');
     }
