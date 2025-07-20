@@ -12,8 +12,6 @@ const characters = [
   { name: 'Friend 1', src: '/videos/friend1.mp4' },
   { name: 'Friend 2', src: '/videos/friend2.mp4' },
   { name: 'Friend 3', src: '/videos/friend3.mp4' },
-  { name: 'Friend 4', src: '/videos/friend4.mp4' },
-  { name: 'Friend 5', src: '/videos/friend5.mp4' },
 ];
 
 const GAME_DURATION = 60; // Total seconds for the game
