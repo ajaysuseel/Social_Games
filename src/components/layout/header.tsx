@@ -33,7 +33,7 @@ export function Header() {
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
         <Link href="/" className="flex items-center gap-2 text-lg font-semibold md:text-base font-headline">
           <div className="w-6 h-6 bg-primary rounded-md"></div>
-          <span>Sensory Social</span>
+          <span>Social Games</span>
         </Link>
       </nav>
       <Sheet>
@@ -47,7 +47,7 @@ export function Header() {
           <nav className="grid gap-6 text-lg font-medium">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4 font-headline">
               <div className="w-8 h-8 bg-primary rounded-lg"></div>
-              <span>Sensory Social</span>
+              <span>Social Games</span>
             </Link>
             {menuItems.map((item) =>
               item.subItems ? (

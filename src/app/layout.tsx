@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/header';
 import { SettingsProvider } from '@/hooks/use-settings';
 
 export const metadata: Metadata = {
-  title: 'Sensory Social Games',
+  title: 'Social Games',
   description: 'Therapeutic games for autistic children',
 };
 

@@ -73,7 +73,7 @@ export function AppSidebar() {
     <aside className="hidden md:flex flex-col w-64 p-4 border-r bg-card h-full">
       <div className="flex items-center gap-2 pb-4 border-b">
         <div className="w-8 h-8 bg-primary rounded-lg"></div>
-        <h1 className="text-xl font-bold font-headline">Sensory Social</h1>
+        <h1 className="text-xl font-bold font-headline">Social Games</h1>
       </div>
       <nav className="flex flex-col gap-2 mt-4 flex-1">
         <Accordion

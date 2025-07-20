@@ -8,7 +8,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <header className="space-y-2">
         <h1 className="text-3xl md:text-4xl font-bold font-headline tracking-tight text-primary">
-          Welcome to Sensory Social Games
+          Welcome to Social Games
         </h1>
         <p className="text-muted-foreground text-lg">
           A calm, safe, and engaging space to practice social skills.
