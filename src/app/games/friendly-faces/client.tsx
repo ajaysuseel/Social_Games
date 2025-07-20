@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -95,14 +96,14 @@ export function FriendlyFacesGameClient() {
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
-      <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" autoPlay muted playsInline />
+      <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] hidden" autoPlay muted playsInline />
       <AnimatePresence>
           <motion.div
             key={character.name}
             className="absolute inset-0 flex flex-col items-center justify-center"
           >
              <div
-                className="w-full h-full relative drop-shadow-2xl"
+                className="w-full h-full relative"
              >
               <video
                 key={character.src}
