@@ -36,12 +36,13 @@ const prompt = ai.definePrompt({
   name: 'detectWavePrompt',
   input: {schema: DetectWaveInputSchema},
   output: {schema: DetectWaveOutputSchema},
-  prompt: `You are an expert in gesture recognition. Your task is to determine if a person in the image is waving.
+  prompt: `You are an expert in gesture recognition. Your task is to determine if a person in the image is waving, while ignoring all facial features for privacy.
 A wave is defined as a hand raised at or above shoulder level, with fingers likely spread.
 Set isWaving to true only if a clear wave gesture is visible.
 If no person is visible, or if they are not waving as described, isWaving must be false.
+Your analysis should be based solely on body and hand position, not on facial expression or identity.
 
-Analyze this image: {{media url=photoDataUri}}`,
+Analyze this image for a wave gesture: {{media url=photoDataUri}}`,
   config: {
     safetySettings: [
       {
