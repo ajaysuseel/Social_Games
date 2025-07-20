@@ -105,17 +105,8 @@ export function FriendlyFacesGameClient() {
             transition={{ duration: 0.5 }}
             className="absolute inset-0 flex flex-col items-center justify-center"
           >
-             <motion.div
+             <div
                 className="w-full h-full relative drop-shadow-2xl"
-                animate={{
-                    rotate: [0, 2, -1, 2, 0],
-                    transition: {
-                        duration: 4,
-                        ease: "easeInOut",
-                        repeat: Infinity,
-                        repeatDelay: 1,
-                    },
-                }}
              >
               <video
                 key={character.src}
@@ -127,7 +118,7 @@ export function FriendlyFacesGameClient() {
               >
                   <source src={character.src} type="video/mp4" />
               </video>
-            </motion.div>
+            </div>
           </motion.div>
       </AnimatePresence>
 
