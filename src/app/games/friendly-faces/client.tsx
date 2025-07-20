@@ -7,15 +7,15 @@ import { useToast } from '@/hooks/use-toast';
 import { detectHello } from '@/ai/flows/detect-hello';
 import { generateSpeech } from '@/ai/flows/speech';
 import { Progress } from '@/components/ui/progress';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, Volume2 } from 'lucide-react';
 
 const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
-const promptAudioUrl = '/audio/hello.mp4'; // Using local audio file
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'listening' | 'responding' | 'end'>('start');
+  const [gameState, setGameState] = useState<'start' | 'generating_prompt' | 'listening' | 'responding' | 'end'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
+  const [promptAudioUrl, setPromptAudioUrl] = useState<string | null>(null);
   const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -67,8 +67,7 @@ export function FriendlyFacesGameClient() {
     if (gameState === 'listening' && promptAudioUrl && promptAudioRef.current) {
       promptAudioRef.current.play().catch(e => console.error("Could not play prompt audio", e));
     }
-  }, [gameState]);
-
+  }, [gameState, promptAudioUrl]);
 
   const handleDetection = useCallback(async (audioBlob: Blob) => {
     if (isDetecting) return;
@@ -158,14 +157,29 @@ export function FriendlyFacesGameClient() {
   }, [gameState, toast, stopDetection, handleDetection, isDetecting]);
   
   const handleStart = async () => {
-    setGameState('listening');
+    setGameState('generating_prompt');
     setResponseAudioUrl(null);
+    setPromptAudioUrl(null);
+    try {
+      const { audioUrl } = await generateSpeech({ text: 'Hello' });
+      setPromptAudioUrl(audioUrl);
+      setGameState('listening');
+    } catch (e) {
+      console.error("Failed to generate prompt audio", e);
+      toast({
+        variant: 'destructive',
+        title: 'Audio Generation Failed',
+        description: 'Could not generate the initial prompt audio.'
+      });
+      setGameState('start');
+    }
   };
   
   const handleRestart = () => {
     setGameState('start');
     setHasMicPermission(null);
     setResponseAudioUrl(null);
+    setPromptAudioUrl(null);
   };
 
   if (gameState === 'start') {
@@ -173,6 +187,15 @@ export function FriendlyFacesGameClient() {
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <h2 className="text-2xl font-bold mb-4">Ready to make a new friend?</h2>
         <Button onClick={handleStart}>Start Game</Button>
+      </div>
+    );
+  }
+  
+  if (gameState === 'generating_prompt') {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 h-96">
+        <Volume2 className="w-12 h-12 text-primary animate-pulse mb-4" />
+        <h2 className="text-xl font-bold">Getting ready...</h2>
       </div>
     );
   }
