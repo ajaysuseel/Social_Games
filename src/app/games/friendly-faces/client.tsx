@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hand, RefreshCw } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 const animalTypes = ['Dog', 'Cat', 'Bear', 'Rabbit', 'Fox'];
 
@@ -21,41 +22,35 @@ type FriendlyFacesGameClientProps = {
 
 export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameClientProps) {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [currentAnimal, setCurrentAnimal] = useState<Animal | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
-  const [isLoading, setIsLoading] = useState(false);
+  const [animals, setAnimals] = useState<Animal[]>([]);
+  const [gameState, setGameState] = useState<'start' | 'loading' | 'playing' | 'end'>('start');
   const [animalIndex, setAnimalIndex] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
-  const loadNextAnimal = useCallback(async () => {
-    if (animalIndex >= animalTypes.length) {
-      setGameState('end');
-      return;
-    }
-    setIsLoading(true);
-    const animalType = animalTypes[animalIndex];
+  const preloadAnimals = useCallback(async () => {
+    setGameState('loading');
+    setLoadingProgress(0);
+    const generatedAnimals: Animal[] = [];
     try {
-      const imageUrl = await handleGenerate(animalType);
-      setCurrentAnimal({ name: animalType, src: imageUrl });
+      for (let i = 0; i < animalTypes.length; i++) {
+        const animalType = animalTypes[i];
+        const imageUrl = await handleGenerate(animalType);
+        generatedAnimals.push({ name: animalType, src: imageUrl });
+        setLoadingProgress(((i + 1) / animalTypes.length) * 100);
+      }
+      setAnimals(generatedAnimals);
+      setGameState('playing');
     } catch (error) {
-       toast({
-          variant: 'destructive',
-          title: 'Error Generating Animal',
-          description: 'Could not create a new friend. Please try again.',
-        });
-        // Optionally go to end state or allow retry
-        setGameState('end');
-    } finally {
-      setIsLoading(false);
+      toast({
+        variant: 'destructive',
+        title: 'Error Generating Animals',
+        description: 'Could not create new friends. Please try again.',
+      });
+      setGameState('start');
     }
-  }, [animalIndex, handleGenerate, toast]);
-
-  useEffect(() => {
-    if (gameState === 'playing' && !currentAnimal && !isLoading) {
-      loadNextAnimal();
-    }
-  }, [gameState, currentAnimal, isLoading, loadNextAnimal]);
+  }, [handleGenerate, toast]);
 
   useEffect(() => {
     if (gameState !== 'playing') {
@@ -108,29 +103,42 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
   }, [gameState, toast]);
 
   const handleWaveBack = () => {
-    setAnimalIndex((prev) => prev + 1);
-    setCurrentAnimal(null); // Clear current animal to trigger loading the next one
+    const nextIndex = animalIndex + 1;
+    if (nextIndex < animals.length) {
+      setAnimalIndex(nextIndex);
+    } else {
+      setGameState('end');
+    }
   };
 
   const handleStart = () => {
-    setGameState('playing');
     setAnimalIndex(0);
-    setCurrentAnimal(null);
+    setAnimals([]);
+    preloadAnimals();
   };
   
   const handleRestart = () => {
     setGameState('start');
-    setCurrentAnimal(null);
+    setAnimals([]);
     setAnimalIndex(0);
     setHasCameraPermission(null);
   };
-
 
   if (gameState === 'start') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <h2 className="text-2xl font-bold mb-4">Ready to make new friends?</h2>
         <Button onClick={handleStart}>Start Game</Button>
+      </div>
+    );
+  }
+
+  if (gameState === 'loading') {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 h-96">
+        <RefreshCw className="w-16 h-16 text-primary animate-spin"/>
+        <p className="text-muted-foreground mt-4 mb-2">Making new friends...</p>
+        <Progress value={loadingProgress} className="w-64" />
       </div>
     );
   }
@@ -143,23 +151,14 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
       </div>
     );
   }
+  
+  const currentAnimal = animals[animalIndex];
 
   return (
     <div className="relative w-full aspect-[4/3] max-w-2xl mx-auto bg-gray-900 rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" autoPlay muted playsInline />
       <AnimatePresence>
-        {isLoading && (
-           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/50"
-          >
-              <RefreshCw className="w-16 h-16 text-white animate-spin"/>
-              <p className="text-white mt-4">Making a new friend...</p>
-          </motion.div>
-        )}
-        {currentAnimal && !isLoading && (
+        {currentAnimal && (
           <motion.div
             key={currentAnimal.name + animalIndex}
             initial={{ opacity: 0, scale: 0.5, y: 100 }}
@@ -187,7 +186,7 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
       </AnimatePresence>
 
       <div className="absolute bottom-4 left-4 right-4 flex justify-center">
-        <Button onClick={handleWaveBack} size="lg" disabled={isLoading}>
+        <Button onClick={handleWaveBack} size="lg">
           <Hand className="mr-2" /> Wave Back
         </Button>
       </div>
