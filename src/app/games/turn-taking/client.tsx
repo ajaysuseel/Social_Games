@@ -25,7 +25,6 @@ const players = {
   P2: { name: 'Player 2', color: 'bg-yellow-300' },
 };
 
-const BUBBLES_PER_TURN = 3;
 const GAME_ROUNDS = 2;
 const TURN_DURATION = 10; // 10 seconds per turn
 
@@ -50,7 +49,6 @@ export function BubbleHarmonyGame() {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'paused' | 'end'>('start');
   const [currentPlayer, setCurrentPlayer] = useState<'P1' | 'P2'>('P1');
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
-  const [tapsLeft, setTapsLeft] = useState(BUBBLES_PER_TURN);
   const [scores, setScores] = useState({ P1: 0, P2: 0 });
   const [round, setRound] = useState(1);
   const [showTurnIndicator, setShowTurnIndicator] = useState(false);
@@ -125,7 +123,6 @@ export function BubbleHarmonyGame() {
         } else {
           setCurrentPlayer('P2');
         }
-        setTapsLeft(BUBBLES_PER_TURN);
         setTurnTimeLeft(TURN_DURATION);
         generateBubbles();
         setShowTurnIndicator(true);
@@ -138,7 +135,6 @@ export function BubbleHarmonyGame() {
     setScores({ P1: 0, P2: 0 });
     setRound(1);
     setCurrentPlayer('P1');
-    setTapsLeft(BUBBLES_PER_TURN);
     setTurnTimeLeft(TURN_DURATION);
     generateBubbles();
     setGameState('playing');
@@ -157,11 +153,10 @@ export function BubbleHarmonyGame() {
   }
 
   const handleBubbleTap = (id: number) => {
-    if (tapsLeft === 0 || gameState !== 'playing') return;
+    if (gameState !== 'playing') return;
     playSound('pop');
     setBubbles((prev) => prev.filter((b) => b.id !== id));
     setScores((prev) => ({ ...prev, [currentPlayer]: prev[currentPlayer] + 1 }));
-    setTapsLeft((prev) => prev - 1);
   };
 
   useEffect(() => {
@@ -178,13 +173,6 @@ export function BubbleHarmonyGame() {
       if (turnTimerRef.current) clearInterval(turnTimerRef.current);
     };
   }, [gameState, turnTimeLeft, handleTurnEnd]);
-
-
-  useEffect(() => {
-    if (tapsLeft === 0 && gameState === 'playing') {
-      handleTurnEnd();
-    }
-  }, [tapsLeft, gameState, handleTurnEnd]);
 
   useEffect(() => {
     if (showTurnIndicator) {
@@ -222,8 +210,7 @@ export function BubbleHarmonyGame() {
 
   const getStatusText = () => {
     if (gameState === 'paused') return "Game Paused";
-    if (tapsLeft > 0) return `${players[currentPlayer].name}, ${tapsLeft} taps left`;
-    return "Switching turns...";
+    return `It's ${players[currentPlayer].name}'s turn!`;
   }
 
   return (
@@ -292,8 +279,7 @@ export function BubbleHarmonyGame() {
            </div>
         </div>
         <div className="flex items-center justify-center mt-2 gap-4">
-            <Progress value={(BUBBLES_PER_TURN - tapsLeft) / BUBBLES_PER_TURN * 100} className="h-2 flex-1" />
-            <div className="flex items-center gap-1 text-sm font-bold bg-white/50 dark:bg-black/50 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-1 text-sm font-bold bg-white/50 dark:bg-black/50 px-3 py-1 rounded-full w-24 justify-center">
                 <Timer className="w-4 h-4"/>
                 <span>{turnTimeLeft}s</span>
             </div>
