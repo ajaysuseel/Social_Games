@@ -62,10 +62,22 @@ export function FriendlyFacesGameClient() {
     }
   }, [gameState, responseAudioUrl]);
 
-  // Effect for playing the prompt audio
+  // Effect for playing the prompt audio periodically
   useEffect(() => {
     if (gameState === 'listening' && promptAudioUrl && promptAudioRef.current) {
-      promptAudioRef.current.play().catch(e => console.error("Could not play prompt audio", e));
+      const playPrompt = () => {
+        if (promptAudioRef.current) {
+            promptAudioRef.current.currentTime = 0;
+            promptAudioRef.current.play().catch(e => console.error("Could not play prompt audio", e));
+        }
+      };
+      
+      playPrompt(); // Play immediately
+      const promptInterval = setInterval(playPrompt, 6000);
+
+      return () => {
+        clearInterval(promptInterval);
+      };
     }
   }, [gameState, promptAudioUrl]);
 
