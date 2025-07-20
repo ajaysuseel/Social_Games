@@ -3,12 +3,15 @@
  * @fileOverview Flow for generating non-scary animal characters with neutral expressions.
  *
  * - generateCharacter - A function that generates a character based on the specified criteria.
+ * - generateCharacterVideo - A function that generates a video of a character waving.
  * - CharacterDesignInput - The input type for the generateCharacter function.
  * - CharacterDesignOutput - The return type for the generateCharacter function.
+ * - CharacterVideoOutput - The return type for the generateCharacterVideo function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
 
 const CharacterDesignInputSchema = z.object({
   animalType: z
@@ -31,17 +34,30 @@ const CharacterDesignOutputSchema = z.object({
 });
 export type CharacterDesignOutput = z.infer<typeof CharacterDesignOutputSchema>;
 
+const CharacterVideoOutputSchema = z.object({
+  videoUrl: z.string().describe('A data URI of the generated video.'),
+});
+export type CharacterVideoOutput = z.infer<typeof CharacterVideoOutputSchema>;
+
+
 export async function generateCharacter(
   input: CharacterDesignInput
 ): Promise<CharacterDesignOutput> {
   return characterDesignFlow(input);
 }
 
+export async function generateCharacterVideo(
+  input: CharacterDesignInput
+): Promise<CharacterVideoOutput> {
+  return characterVideoFlow(input);
+}
+
+
 const characterDesignPrompt = ai.definePrompt({
   name: 'characterDesignPrompt',
   input: {schema: CharacterDesignInputSchema},
   output: {schema: CharacterDesignOutputSchema},
-  prompt: `You are a character designer specializing in creating non-scary animal characters with neutral expressions suitable for children with sensory sensitivities.  Create a description of the character, and then generate an image of the character.
+  prompt: `You are a character designer specializing in creating non-scary, cute, cartoonish animal characters with neutral expressions suitable for children with sensory sensitivities.  Create a description of the character, and then generate an image of the character.
 
 Animal Type: {{{animalType}}}
 
@@ -94,6 +110,65 @@ const characterDesignFlow = ai.defineFlow(
     return {
       characterDescription: characterDescriptionOutput!.characterDescription,
       characterImage: media!.url,
+    };
+  }
+);
+
+
+const characterVideoFlow = ai.defineFlow(
+  {
+    name: 'characterVideoFlow',
+    inputSchema: CharacterDesignInputSchema,
+    outputSchema: CharacterVideoOutputSchema,
+  },
+  async input => {
+    let { operation } = await ai.generate({
+      model: googleAI.model('veo-2.0-generate-001'),
+      prompt: `A friendly, cartoonish ${input.animalType} waving at the camera with a neutral, happy expression. Simple, uncluttered background.`,
+      config: {
+        durationSeconds: 5,
+        aspectRatio: '1:1',
+        personGeneration: 'dont_allow',
+      },
+    });
+
+    if (!operation) {
+      throw new Error('Expected the model to return an operation');
+    }
+
+    // Wait until the operation completes.
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      operation = await ai.checkOperation(operation);
+    }
+
+    if (operation.error) {
+      throw new Error(`failed to generate video: ${operation.error.message}`);
+    }
+
+    const videoPart = operation.output?.message?.content.find(p => p.media && p.media.contentType === 'video/mp4');
+    if (!videoPart || !videoPart.media) {
+      throw new Error('Failed to find the generated video in the operation result');
+    }
+
+    const videoUrl = videoPart.media.url;
+
+    // The URL from Veo is temporary and needs an API key to be accessed.
+    // We will fetch it and convert to a base64 data URI to send to the client.
+    const fetch = (await import('node-fetch')).default;
+    const videoDownloadResponse = await fetch(
+      `${videoUrl}&key=${process.env.GEMINI_API_KEY}`
+    );
+
+    if (!videoDownloadResponse.ok || !videoDownloadResponse.body) {
+      throw new Error(`Failed to download video from ${videoUrl}. Status: ${videoDownloadResponse.status}`);
+    }
+    
+    const videoBuffer = await videoDownloadResponse.arrayBuffer();
+    const base64Video = Buffer.from(videoBuffer).toString('base64');
+    
+    return {
+      videoUrl: `data:video/mp4;base64,${base64Video}`,
     };
   }
 );

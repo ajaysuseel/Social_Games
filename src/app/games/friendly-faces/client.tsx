@@ -1,60 +1,65 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hand, RefreshCw } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
 
 const animalTypes = ['Dog', 'Cat', 'Bear', 'Rabbit', 'Fox'];
 
-type Animal = {
+type AnimalVideo = {
   name: string;
   src: string;
 };
 
 type FriendlyFacesGameClientProps = {
-  handleGenerate: (animalType: string) => Promise<string>;
+  handleGenerateVideo: (animalType: string) => Promise<string>;
 };
 
-export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameClientProps) {
+export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGameClientProps) {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [animals, setAnimals] = useState<Animal[]>([]);
+  const [animalVideos, setAnimalVideos] = useState<AnimalVideo[]>([]);
   const [gameState, setGameState] = useState<'start' | 'loading' | 'playing' | 'end'>('start');
   const [animalIndex, setAnimalIndex] = useState(0);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const animalVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
-  const preloadAnimals = useCallback(async () => {
+  const preloadAnimalVideos = useCallback(async () => {
     setGameState('loading');
     setLoadingProgress(0);
-    const generatedAnimals: Animal[] = [];
+    const generatedVideos: AnimalVideo[] = [];
     try {
       for (let i = 0; i < animalTypes.length; i++) {
         const animalType = animalTypes[i];
-        const imageUrl = await handleGenerate(animalType);
-        generatedAnimals.push({ name: animalType, src: imageUrl });
+        const videoUrl = await handleGenerateVideo(animalType);
+        if (videoUrl) {
+          generatedVideos.push({ name: animalType, src: videoUrl });
+        } else {
+           // If one fails, maybe we just skip it or show an error and stop.
+           // For now, let's stop and show an error.
+           throw new Error(`Failed to generate video for ${animalType}`);
+        }
         setLoadingProgress(((i + 1) / animalTypes.length) * 100);
       }
-      setAnimals(generatedAnimals);
+      setAnimalVideos(generatedVideos);
       setGameState('playing');
     } catch (error) {
+      console.error(error);
       toast({
         variant: 'destructive',
         title: 'Error Generating Animals',
-        description: 'Could not create new friends. Please try again.',
+        description: 'Could not create new friends. Please try again later.',
       });
       setGameState('start');
     }
-  }, [handleGenerate, toast]);
+  }, [handleGenerateVideo, toast]);
 
   useEffect(() => {
     if (gameState !== 'playing') {
-      // Clean up camera stream when not playing
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
@@ -94,7 +99,6 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
     getCameraPermission();
 
     return () => {
-      // This cleanup runs when the component unmounts or gameState changes from 'playing'
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
@@ -104,25 +108,31 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
 
   const handleWaveBack = () => {
     const nextIndex = animalIndex + 1;
-    if (nextIndex < animals.length) {
+    if (nextIndex < animalVideos.length) {
       setAnimalIndex(nextIndex);
     } else {
       setGameState('end');
     }
   };
-
+  
   const handleStart = () => {
     setAnimalIndex(0);
-    setAnimals([]);
-    preloadAnimals();
+    setAnimalVideos([]);
+    preloadAnimalVideos();
   };
   
   const handleRestart = () => {
     setGameState('start');
-    setAnimals([]);
+    setAnimalVideos([]);
     setAnimalIndex(0);
     setHasCameraPermission(null);
   };
+
+  useEffect(() => {
+    if(animalVideoRef.current){
+        animalVideoRef.current.load();
+    }
+  }, [animalIndex])
 
   if (gameState === 'start') {
     return (
@@ -137,7 +147,7 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <RefreshCw className="w-16 h-16 text-primary animate-spin"/>
-        <p className="text-muted-foreground mt-4 mb-2">Making new friends...</p>
+        <p className="text-muted-foreground mt-4 mb-2">Making new friends... this might take a minute.</p>
         <Progress value={loadingProgress} className="w-64" />
       </div>
     );
@@ -152,10 +162,10 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
     );
   }
   
-  const currentAnimal = animals[animalIndex];
+  const currentAnimal = animalVideos[animalIndex];
 
   return (
-    <div className="relative w-full aspect-[4/3] max-w-2xl mx-auto bg-gray-900 rounded-lg overflow-hidden">
+    <div className="relative w-full aspect-square max-w-2xl mx-auto bg-gray-900 rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" autoPlay muted playsInline />
       <AnimatePresence>
         {currentAnimal && (
@@ -165,22 +175,23 @@ export function FriendlyFacesGameClient({ handleGenerate }: FriendlyFacesGameCli
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.5, y: -100 }}
             transition={{ duration: 0.5 }}
-            className="absolute inset-0 flex flex-col items-center justify-end p-4"
+            className="absolute inset-0 flex flex-col items-center justify-center p-4"
           >
-            <motion.div
-              animate={{ rotate: [0, 15, -10, 15, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-48 h-48 md:w-64 md:h-64 relative"
+            <div
+              className="w-48 h-48 md:w-64 md:h-64 relative drop-shadow-2xl"
             >
-              <Image
-                src={currentAnimal.src}
-                alt={`A friendly ${currentAnimal.name}`}
-                fill
-                className="object-contain drop-shadow-2xl"
-                sizes="(max-width: 768px) 50vw, 33vw"
-                priority
-              />
-            </motion.div>
+              <video
+                ref={animalVideoRef}
+                key={currentAnimal.src}
+                className="w-full h-full object-contain rounded-full"
+                autoPlay
+                loop
+                muted
+                playsInline
+              >
+                  <source src={currentAnimal.src} type="video/mp4" />
+              </video>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

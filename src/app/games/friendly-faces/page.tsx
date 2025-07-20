@@ -1,17 +1,17 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { FriendlyFacesGameClient } from './client';
-import { generateCharacter } from '@/ai/flows/character-design';
+import { generateCharacterVideo } from '@/ai/flows/character-design';
 
 export default function FriendlyFacesPage() {
-  async function handleGenerate(animalType: string) {
+  async function handleGenerateVideo(animalType: string) {
     'use server';
     try {
-      const result = await generateCharacter({ animalType });
-      return result.characterImage;
+      const result = await generateCharacterVideo({ animalType });
+      return result.videoUrl;
     } catch (e) {
       console.error(e);
-      // Return a placeholder or handle the error as appropriate
-      return 'https://placehold.co/400x400.png';
+      // In case of error, we can return an empty string and the client can handle it.
+      return '';
     }
   }
 
@@ -27,7 +27,7 @@ export default function FriendlyFacesPage() {
       </header>
       <Card>
         <CardContent className="p-0">
-          <FriendlyFacesGameClient handleGenerate={handleGenerate} />
+          <FriendlyFacesGameClient handleGenerateVideo={handleGenerateVideo} />
         </CardContent>
       </Card>
     </div>
