@@ -1,7 +1,20 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { FriendlyFacesGame } from './client';
+import { FriendlyFacesGameClient } from './client';
+import { generateCharacter } from '@/ai/flows/character-design';
 
 export default function FriendlyFacesPage() {
+  async function handleGenerate(animalType: string) {
+    'use server';
+    try {
+      const result = await generateCharacter({ animalType });
+      return result.characterImage;
+    } catch (e) {
+      console.error(e);
+      // Return a placeholder or handle the error as appropriate
+      return 'https://placehold.co/400x400.png';
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <header className="space-y-2">
@@ -14,7 +27,7 @@ export default function FriendlyFacesPage() {
       </header>
       <Card>
         <CardContent className="p-0">
-          <FriendlyFacesGame />
+          <FriendlyFacesGameClient handleGenerate={handleGenerate} />
         </CardContent>
       </Card>
     </div>
