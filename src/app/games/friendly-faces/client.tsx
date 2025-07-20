@@ -99,18 +99,18 @@ export function FriendlyFacesGameClient() {
       <AnimatePresence>
           <motion.div
             key={character.name}
-            initial={{ opacity: 0, scale: 0.5, y: 100 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.5, y: -100 }}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
             transition={{ duration: 0.5 }}
             className="absolute inset-0 flex flex-col items-center justify-center p-4"
           >
              <motion.div
-                className="w-48 h-48 md:w-64 md:h-64 relative drop-shadow-2xl"
+                className="w-full h-full relative drop-shadow-2xl"
                 animate={{
-                    rotate: [0, 10, -5, 10, 0],
+                    rotate: [0, 2, -1, 2, 0],
                     transition: {
-                        duration: 2,
+                        duration: 4,
                         ease: "easeInOut",
                         repeat: Infinity,
                         repeatDelay: 1,
@@ -119,7 +119,7 @@ export function FriendlyFacesGameClient() {
              >
               <video
                 key={character.src}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
                 autoPlay
                 loop
                 muted
