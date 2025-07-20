@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trophy, Smile, Pause, Play, RefreshCw, Hand } from 'lucide-react';
+import { Trophy, Smile, Pause, Play, RefreshCw, Hand, Timer } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +26,7 @@ const availableCharacters = [
 ];
 
 const GREETING_AUDIO_SRC = '/audio/hi-friend.mp3';
+const TURN_DURATION = 7; // in seconds
 
 export function FriendlyFacesGameClient() {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'paused' | 'win'>('start');
@@ -35,34 +36,48 @@ export function FriendlyFacesGameClient() {
   const [gameCharacters, setGameCharacters] = useState<{name: string; src: string}[]>([]);
   const [showSmile, setShowSmile] = useState(false);
   const { soundEnabled } = useSettings();
+  const [timeLeft, setTimeLeft] = useState(TURN_DURATION);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   const currentCharacter = gameCharacters[currentCharacterIndex];
 
-  const nextCharacter = useCallback(() => {
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const nextCharacter = useCallback((success: boolean) => {
+    stopTimer();
     setShowSmile(false);
-    if (friendsMade + 1 >= numFriends) {
+
+    const newFriendsMade = success ? friendsMade + 1 : friendsMade;
+    setFriendsMade(newFriendsMade);
+
+    if (currentCharacterIndex + 1 >= numFriends) {
       setGameState('win');
-      setFriendsMade(f => f + 1);
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
-      setFriendsMade(prev => prev + 1);
       setGameState('playing');
+      setTimeLeft(TURN_DURATION);
     }
-  }, [friendsMade, numFriends]);
+  }, [friendsMade, numFriends, currentCharacterIndex, stopTimer]);
 
 
   const handleMakeFriend = () => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || showSmile) return;
 
     if (soundEnabled && audioRef.current) {
         audioRef.current.currentTime = 0; // Rewind to start
         audioRef.current.play();
     }
     setShowSmile(true);
+    stopTimer(); // Stop the timer on success
     setTimeout(() => {
-        nextCharacter();
+        nextCharacter(true);
     }, 1500); // Show smile for 1.5 seconds
   }
 
@@ -83,6 +98,7 @@ export function FriendlyFacesGameClient() {
     setGameCharacters(randomizedCharacters);
     setFriendsMade(0);
     setCurrentCharacterIndex(0);
+    setTimeLeft(TURN_DURATION);
     setGameState('playing');
   };
 
@@ -92,13 +108,34 @@ export function FriendlyFacesGameClient() {
         audioRef.current.preload = 'auto';
     }
   }, []);
+  
+  useEffect(() => {
+    if (gameState === 'playing' && !showSmile) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else {
+      stopTimer();
+    }
+
+    return () => stopTimer();
+  }, [gameState, showSmile, stopTimer]);
+  
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      nextCharacter(false);
+    }
+  }, [timeLeft, nextCharacter]);
+
 
   const handleRestart = () => {
+    stopTimer();
     setGameState('start');
   };
   
   const handlePause = () => {
     if (gameState !== 'playing') return;
+    stopTimer();
     setGameState('paused');
   }
 
@@ -106,6 +143,10 @@ export function FriendlyFacesGameClient() {
     if (gameState !== 'paused') return;
     setGameState('playing');
   }
+  
+  useEffect(() => {
+      return () => stopTimer();
+  }, [stopTimer]);
 
   if (gameState === 'start') {
     return (
@@ -187,7 +228,10 @@ export function FriendlyFacesGameClient() {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-            <div>Friend {currentCharacterIndex + 1} of {numFriends}</div>
+            <div className="flex items-center gap-1 font-bold">
+                <Timer className="w-5 h-5"/>
+                {timeLeft}s
+            </div>
          </div>
       </div>
 
