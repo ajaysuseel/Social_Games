@@ -6,7 +6,6 @@ import {
   MousePointer2,
   Smile,
   Hand,
-  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
