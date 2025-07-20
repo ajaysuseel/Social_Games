@@ -19,7 +19,7 @@ const characters = [
 
 const GAME_DURATION = 60; // Total seconds for the game
 const TIME_PER_CHARACTER = 12; // Seconds per character
-const PROMPT_AUDIO_PATH = '/audio/hello.mp3'; // Path to your static audio file
+const PROMPT_AUDIO_PATH = '/audio/hai.mp3'; // Path to your static audio file
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
@@ -103,6 +103,9 @@ export function FriendlyFacesGameClient() {
   }, [gameState, responseAudioUrl, nextCharacter]);
 
   useEffect(() => {
+    if (promptAudioRef.current) {
+        promptAudioRef.current.volume = 0.5; // Set volume to 50%
+    }
     if (gameState === 'listening' && promptAudioRef.current) {
       const playPrompt = () => {
         if (promptAudioRef.current) {
@@ -333,5 +336,7 @@ export function FriendlyFacesGameClient() {
     </div>
   );
 }
+
+    
 
     
