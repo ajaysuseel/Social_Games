@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
@@ -7,11 +8,11 @@ import { useSettings } from '@/hooks/use-settings';
 import { Timer, Rabbit, Turtle } from 'lucide-react';
 
 const animals = [
-  { name: 'Bunny', src: '/images/animal-tap/bunny.png' },
   { name: 'Cat', src: '/images/animal-tap/cat.png' },
   { name: 'Dog', src: '/images/animal-tap/dog.png' },
-  { name: 'Frog', src: '/images/animal-tap/frog.png' },
-  { name: 'Fox', src: '/images/animal-tap/fox.png' },
+  { name: 'Lion', src: '/images/animal-tap/lion.png' },
+  { name: 'Duck', src: '/images/animal-tap/duck.png' },
+  { name: 'Rabbit', src: '/images/animal-tap/rabbit.png' },
 ];
 
 const GAME_DURATION = 30; // in seconds
