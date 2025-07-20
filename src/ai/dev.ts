@@ -3,4 +3,3 @@ config({ path: '.env.local' });
 config();
 
 import '@/ai/flows/speech.ts';
-import '@/ai/flows/detect-hai.ts';

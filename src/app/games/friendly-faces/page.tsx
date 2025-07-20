@@ -8,7 +8,7 @@ export default function FriendlyFacesPage() {
           Friendly Faces
         </h1>
         <p className="text-muted-foreground text-lg">
-          Say "hai" to all the friends before time runs out!
+          Click the button to make a new friend!
         </p>
       </header>
       <div className="flex-grow relative">

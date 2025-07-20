@@ -12,7 +12,7 @@ const games = [
   },
   {
     title: 'Friendly Faces',
-    description: 'Practice social greetings by saying "hai" to new friends.',
+    description: 'Practice social greetings by meeting new friends with a simple click.',
     href: '/games/friendly-faces',
     icon: Smile,
   },
