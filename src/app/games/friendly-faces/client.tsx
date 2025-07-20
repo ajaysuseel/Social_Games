@@ -2,61 +2,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hand, RefreshCw } from 'lucide-react';
+import { Hand } from 'lucide-react';
 
-const animalTypes = ['Dog', 'Cat', 'Bear', 'Rabbit', 'Fox'];
+const animals = [
+  { name: 'Dog', src: '/videos/dog.mp4' },
+  { name: 'Cat', src: '/videos/cat.mp4' },
+  { name: 'Bear', src: '/videos/bear.mp4' },
+  { name: 'Rabbit', src: '/videos/rabbit.mp4' },
+  { name: 'Fox', src: '/videos/fox.mp4' },
+];
 
-type AnimalVideo = {
-  name: string;
-  src: string;
-};
-
-type FriendlyFacesGameClientProps = {
-  handleGenerateVideo: (animalType: string) => Promise<string>;
-};
-
-export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGameClientProps) {
+export function FriendlyFacesGameClient() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [animalVideos, setAnimalVideos] = useState<AnimalVideo[]>([]);
-  const [gameState, setGameState] = useState<'start' | 'loading' | 'playing' | 'end'>('start');
+  const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
   const [animalIndex, setAnimalIndex] = useState(0);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const animalVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
-
-  const preloadAnimalVideos = useCallback(async () => {
-    setGameState('loading');
-    setLoadingProgress(0);
-    const generatedVideos: AnimalVideo[] = [];
-    try {
-      for (let i = 0; i < animalTypes.length; i++) {
-        const animalType = animalTypes[i];
-        const videoUrl = await handleGenerateVideo(animalType);
-        if (videoUrl) {
-          generatedVideos.push({ name: animalType, src: videoUrl });
-        } else {
-           // If one fails, maybe we just skip it or show an error and stop.
-           // For now, let's stop and show an error.
-           throw new Error(`Failed to generate video for ${animalType}`);
-        }
-        setLoadingProgress(((i + 1) / animalTypes.length) * 100);
-      }
-      setAnimalVideos(generatedVideos);
-      setGameState('playing');
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Error Generating Animals',
-        description: 'Could not create new friends. Please try again later.',
-      });
-      setGameState('start');
-    }
-  }, [handleGenerateVideo, toast]);
 
   useEffect(() => {
     if (gameState !== 'playing') {
@@ -108,7 +72,7 @@ export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGa
 
   const handleWaveBack = () => {
     const nextIndex = animalIndex + 1;
-    if (nextIndex < animalVideos.length) {
+    if (nextIndex < animals.length) {
       setAnimalIndex(nextIndex);
     } else {
       setGameState('end');
@@ -117,13 +81,11 @@ export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGa
   
   const handleStart = () => {
     setAnimalIndex(0);
-    setAnimalVideos([]);
-    preloadAnimalVideos();
+    setGameState('playing');
   };
   
   const handleRestart = () => {
     setGameState('start');
-    setAnimalVideos([]);
     setAnimalIndex(0);
     setHasCameraPermission(null);
   };
@@ -143,16 +105,6 @@ export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGa
     );
   }
 
-  if (gameState === 'loading') {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 h-96">
-        <RefreshCw className="w-16 h-16 text-primary animate-spin"/>
-        <p className="text-muted-foreground mt-4 mb-2">Making new friends... this might take a minute.</p>
-        <Progress value={loadingProgress} className="w-64" />
-      </div>
-    );
-  }
-
   if (gameState === 'end') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
@@ -162,7 +114,7 @@ export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGa
     );
   }
   
-  const currentAnimal = animalVideos[animalIndex];
+  const currentAnimal = animals[animalIndex];
 
   return (
     <div className="relative w-full aspect-square max-w-2xl mx-auto bg-gray-900 rounded-lg overflow-hidden">
@@ -183,7 +135,7 @@ export function FriendlyFacesGameClient({ handleGenerateVideo }: FriendlyFacesGa
               <video
                 ref={animalVideoRef}
                 key={currentAnimal.src}
-                className="w-full h-full object-contain rounded-full"
+                className="w-full h-full object-contain"
                 autoPlay
                 loop
                 muted
