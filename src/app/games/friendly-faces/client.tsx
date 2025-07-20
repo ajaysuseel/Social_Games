@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { detectWave } from '@/ai/flows/detect-wave';
+import { generateSpeech } from '@/ai/flows/speech';
 import { Progress } from '@/components/ui/progress';
 
 const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
@@ -14,9 +15,11 @@ export function FriendlyFacesGameClient() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<NodeJS.Timeout>();
+  const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
 
   const stopDetection = useCallback(() => {
@@ -26,6 +29,28 @@ export function FriendlyFacesGameClient() {
     }
     setIsDetecting(false);
   }, []);
+
+  const handleWaveDetected = useCallback(async () => {
+    try {
+      const { audioUrl: generatedAudioUrl } = await generateSpeech({ text: 'Hello' });
+      setAudioUrl(generatedAudioUrl);
+    } catch(e) {
+      console.error("Failed to generate speech", e);
+      // Fallback or just end the game
+      setGameState('end');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (audioUrl && audioRef.current) {
+      audioRef.current.play().then(() => {
+        setGameState('end');
+      }).catch(e => {
+        console.error("Failed to play audio", e);
+        setGameState('end'); // Still end the game
+      });
+    }
+  }, [audioUrl]);
 
   const handleDetection = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || isDetecting) return;
@@ -44,16 +69,15 @@ export function FriendlyFacesGameClient() {
       try {
         const result = await detectWave({ photoDataUri });
         if (result.isWaving) {
-          setGameState('end');
           stopDetection();
+          await handleWaveDetected();
         }
       } catch (error) {
         console.error("Detection failed:", error);
-        // Optionally show a toast or message on detection error
       }
     }
     setIsDetecting(false);
-  }, [isDetecting, stopDetection]);
+  }, [isDetecting, stopDetection, handleWaveDetected]);
 
   useEffect(() => {
     if (gameState === 'playing' && hasCameraPermission) {
@@ -117,6 +141,7 @@ export function FriendlyFacesGameClient() {
   
   const handleStart = () => {
     setGameState('playing');
+    setAudioUrl(null);
   };
   
   const handleRestart = () => {
@@ -146,26 +171,25 @@ export function FriendlyFacesGameClient() {
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] hidden" autoPlay muted playsInline />
       <canvas ref={canvasRef} className="hidden" />
+      {audioUrl && <audio ref={audioRef} src={audioUrl} />}
 
-      <AnimatePresence>
-        <motion.div
-          key={character.name}
-          className="absolute inset-0 flex flex-col items-center justify-center"
-        >
-          <div className="w-full h-full relative">
-            <video
-              key={character.src}
-              className="w-full h-full object-contain"
-              autoPlay
-              loop
-              muted
-              playsInline
-            >
-              <source src={character.src} type="video/mp4" />
-            </video>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+      <motion.div
+        key={character.name}
+        className="absolute inset-0 flex flex-col items-center justify-center"
+      >
+        <div className="w-full h-full relative">
+          <video
+            key={character.src}
+            className="w-full h-full object-contain"
+            autoPlay
+            loop
+            muted
+            playsInline
+          >
+            <source src={character.src} type="video/mp4" />
+          </video>
+        </div>
+      </motion.div>
 
       {gameState === 'playing' && hasCameraPermission && (
           <div className="absolute bottom-4 left-4 right-4 z-20">
