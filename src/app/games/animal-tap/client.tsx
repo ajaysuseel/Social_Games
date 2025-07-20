@@ -5,7 +5,19 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
-import { Timer, Rabbit } from 'lucide-react';
+import { Timer, Rabbit, Pause, Play, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 const animals = [
   { name: 'Cat', src: '/images/animal-tap/cat.png' },
@@ -29,7 +41,7 @@ type AnimalOnScreen = {
 };
 
 export function AnimalTapClient() {
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
+  const [gameState, setGameState] = useState<'start' | 'playing' | 'paused' | 'end'>('start');
   const [animalsOnScreen, setAnimalsOnScreen] = useState<AnimalOnScreen[]>([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
@@ -88,6 +100,12 @@ export function AnimalTapClient() {
       movementTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
       movementTimeoutsRef.current.clear();
   };
+  
+  const stopAllTimers = useCallback(() => {
+    if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+  },[]);
+
 
   const startGame = () => {
     setGameState('playing');
@@ -95,6 +113,7 @@ export function AnimalTapClient() {
     setTimeLeft(GAME_DURATION);
     setAnimalsOnScreen([]);
     clearAllTimeouts();
+    stopAllTimers();
 
     gameIntervalRef.current = setInterval(addAnimal, 1500); // Slower appearance
     timerIntervalRef.current = setInterval(() => {
@@ -103,12 +122,26 @@ export function AnimalTapClient() {
   };
   
   const endGame = useCallback(() => {
-    clearInterval(gameIntervalRef.current);
-    clearInterval(timerIntervalRef.current);
+    stopAllTimers();
     clearAllTimeouts();
     setGameState('end');
     playSound('end');
-  }, [playSound]);
+  }, [playSound, stopAllTimers]);
+  
+  const pauseGame = () => {
+    if (gameState !== 'playing') return;
+    stopAllTimers();
+    setGameState('paused');
+  }
+
+  const resumeGame = () => {
+    if (gameState !== 'paused') return;
+    setGameState('playing');
+    gameIntervalRef.current = setInterval(addAnimal, 1500);
+    timerIntervalRef.current = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+  }
 
   useEffect(() => {
     if (timeLeft <= 0 && gameState === 'playing') {
@@ -118,16 +151,16 @@ export function AnimalTapClient() {
   
   useEffect(() => {
     return () => {
-      clearInterval(gameIntervalRef.current);
-      clearInterval(timerIntervalRef.current);
+      stopAllTimers();
       clearAllTimeouts();
     };
-  }, []);
+  }, [stopAllTimers]);
 
 
   const handleAnimalTap = (id: number) => {
+    if (gameState !== 'playing') return;
     if (movementTimeoutsRef.current.has(id)) {
-        clearTimeout(movementTimeoutsRef.current.get(id));
+        clearTimeout(movementTimeoutsRef.current.get(id)!);
         movementTimeoutsRef.current.delete(id);
     }
     playSound('pop');
@@ -157,10 +190,46 @@ export function AnimalTapClient() {
 
   return (
     <div className="relative w-full h-[60vh] md:h-[70vh] bg-green-100 dark:bg-green-900/50 overflow-hidden rounded-lg border-4 border-green-200 dark:border-green-800">
+       <AnimatePresence>
+        {gameState === 'paused' && (
+           <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+            >
+              <h2 className="text-3xl font-bold text-white">Paused</h2>
+              <Button onClick={resumeGame} size="lg">
+                <Play className="mr-2"/> Resume
+              </Button>
+           </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-center bg-white/70 dark:bg-black/70 backdrop-blur-sm p-3 rounded-full shadow-lg">
         <div className="flex items-center gap-2 font-bold text-lg">
             <Rabbit className="text-primary"/>
             <span>Score: {score}</span>
+        </div>
+        <div className="flex items-center gap-2">
+            <Button onClick={gameState === 'paused' ? resumeGame : pauseGame} size="icon" variant="ghost" className="rounded-full">
+              {gameState === 'paused' ? <Play /> : <Pause />}
+            </Button>
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                   <Button size="icon" variant="ghost" className="rounded-full"><RefreshCw /></Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure you want to restart?</AlertDialogTitle>
+                        <AlertDialogDescription>Your current score will be lost.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={startGame}>Restart</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
         <div className="flex items-center gap-2 font-bold text-lg">
             <Timer className="text-destructive"/>
@@ -198,7 +267,7 @@ export function AnimalTapClient() {
               width={animal.size}
               height={animal.size}
               data-ai-hint="animal character"
-              className="pointer-events-none rounded-full object-cover w-full h-full"
+              className={cn("pointer-events-none rounded-full object-cover w-full h-full", gameState === 'paused' && 'opacity-50')}
             />
           </motion.div>
         ))}

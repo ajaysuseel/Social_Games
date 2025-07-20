@@ -4,11 +4,23 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Mic, MicOff, Trophy, Frown, Timer, Sprout, Smile } from 'lucide-react';
+import { Mic, MicOff, Trophy, Frown, Timer, Sprout, Smile, Pause, Play, RefreshCw } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { detectHai } from '@/ai/flows/detect-hai';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 const availableCharacters = [
   { name: 'Friend 1', src: '/videos/friend1.mp4' },
@@ -23,7 +35,7 @@ const RECORDING_DURATION = 2000; // 2 seconds
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'listening' | 'analyzing' | 'responding' | 'win' | 'lose'>('start');
+  const [gameState, setGameState] = useState<'start' | 'playing' | 'analyzing' | 'responding' | 'paused' | 'win' | 'lose'>('start');
   const [isRecording, setIsRecording] = useState(false);
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [friendsMade, setFriendsMade] = useState(0);
@@ -38,7 +50,6 @@ export function FriendlyFacesGameClient() {
   const characterTimerRef = useRef<NodeJS.Timeout>();
   const responseAudioRef = useRef<HTMLAudioElement>(null);
   const promptAudioRef = useRef<HTMLAudioElement>(null);
-  const analysisTimeoutRef = useRef<NodeJS.Timeout>();
 
   const { toast } = useToast();
   
@@ -47,7 +58,6 @@ export function FriendlyFacesGameClient() {
   const stopAllTimers = useCallback(() => {
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
     if (characterTimerRef.current) clearInterval(characterTimerRef.current);
-    if (analysisTimeoutRef.current) clearTimeout(analysisTimeoutRef.current);
   }, []);
 
   const stopRecording = useCallback(() => {
@@ -69,7 +79,7 @@ export function FriendlyFacesGameClient() {
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
       setCharacterTimeLeft(TIME_PER_CHARACTER);
-      setGameState('listening');
+      setGameState('playing');
     }
   }, [friendsMade, numFriends, stopAllTimers, stopRecording]);
 
@@ -96,7 +106,7 @@ export function FriendlyFacesGameClient() {
         responseAudioRef.current.volume = 0.5; // Set volume to 50%
     }
 
-    if (gameState === 'listening') {
+    if (gameState === 'playing') {
       const playPrompt = () => {
         if (promptAudioRef.current) {
             promptAudioRef.current.currentTime = 0;
@@ -111,7 +121,7 @@ export function FriendlyFacesGameClient() {
 
   // Game timers effect
   useEffect(() => {
-    if (gameState === 'listening' || gameState === 'analyzing' || gameState === 'responding') {
+    if (gameState === 'playing' || gameState === 'analyzing' || gameState === 'responding') {
         characterTimerRef.current = setInterval(() => {
             setCharacterTimeLeft(prev => {
                 if (prev <= 1) {
@@ -133,7 +143,7 @@ export function FriendlyFacesGameClient() {
   }, [gameState, currentCharacterIndex, stopAllTimers, stopRecording]);
 
   useEffect(() => {
-    if (gameTimeLeft <= 0 && ['listening', 'responding', 'analyzing'].includes(gameState)) {
+    if (gameTimeLeft <= 0 && ['playing', 'responding', 'analyzing'].includes(gameState)) {
         setGameState('lose');
         stopAllTimers();
         stopRecording();
@@ -141,7 +151,7 @@ export function FriendlyFacesGameClient() {
   }, [gameTimeLeft, gameState, stopAllTimers, stopRecording]);
 
   const startRecording = useCallback(async () => {
-    if (isRecording || gameState !== 'listening') return;
+    if (isRecording || gameState !== 'playing') return;
 
     setIsRecording(true);
     try {
@@ -156,14 +166,14 @@ export function FriendlyFacesGameClient() {
 
         mediaRecorderRef.current.onstop = async () => {
             setIsRecording(false);
-            if (gameState !== 'listening' && gameState !== 'analyzing') return;
+            if (gameState !== 'playing' && gameState !== 'analyzing') return;
             
             setGameState('analyzing');
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
             audioChunksRef.current = [];
 
             if (audioBlob.size < 1000) {
-              setGameState('listening');
+              setGameState('playing');
               return;
             }
             
@@ -176,12 +186,12 @@ export function FriendlyFacesGameClient() {
                 if (saidHai) {
                   handleHaiDetected();
                 } else {
-                  setGameState('listening');
+                  setGameState('playing');
                 }
               } catch (error) {
                 console.error("Error detecting hai:", error);
                 toast({ variant: 'destructive', title: 'AI Error', description: 'Could not analyze audio.' });
-                setGameState('listening');
+                setGameState('playing');
               }
             };
         };
@@ -235,13 +245,13 @@ export function FriendlyFacesGameClient() {
     setCurrentCharacterIndex(0);
     setGameTimeLeft(numFriends * TIME_PER_CHARACTER);
     setCharacterTimeLeft(TIME_PER_CHARACTER);
-    setGameState('listening');
+    setGameState('playing');
     
     gameTimerRef.current = setInterval(() => {
         setGameTimeLeft(prev => prev - 1);
     }, 1000);
   };
-  
+
   const handleRestart = () => {
     stopAllTimers();
     stopRecording();
@@ -252,6 +262,20 @@ export function FriendlyFacesGameClient() {
     setGameState('start');
     setHasMicPermission(null);
   };
+  
+  const handlePause = () => {
+    if (gameState !== 'playing') return;
+    stopAllTimers();
+    setGameState('paused');
+  }
+
+  const handleResume = () => {
+    if (gameState !== 'paused') return;
+    setGameState('playing');
+     gameTimerRef.current = setInterval(() => {
+        setGameTimeLeft(prev => prev - 1);
+    }, 1000);
+  }
 
   const getStatusMessage = () => {
     if (isRecording) {
@@ -312,17 +336,53 @@ export function FriendlyFacesGameClient() {
     );
   }
 
-  const isGameRunning = ['listening', 'responding', 'analyzing'].includes(gameState) && currentCharacter;
+  const isGameRunning = ['playing', 'responding', 'analyzing', 'paused'].includes(gameState) && currentCharacter;
   const status = getStatusMessage();
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
       <audio ref={promptAudioRef} src={PROMPT_AUDIO_PATH} />
       <audio ref={responseAudioRef} src={RESPONSE_AUDIO_PATH} onEnded={nextCharacter} />
+      
+       <AnimatePresence>
+        {gameState === 'paused' && (
+           <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4 text-white"
+            >
+              <h2 className="text-3xl font-bold">Paused</h2>
+              <Button onClick={handleResume} size="lg">
+                <Play className="mr-2"/> Resume
+              </Button>
+           </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="absolute top-4 left-4 right-4 z-20 space-y-2">
          <div className="flex justify-between items-center bg-black/30 backdrop-blur-sm p-3 rounded-full text-white font-bold">
             <div>Friends Made: {friendsMade} / {numFriends}</div>
+             <div className="flex items-center gap-2">
+                <Button onClick={gameState === 'paused' ? handleResume : handlePause} size="icon" variant="ghost" className="rounded-full text-white hover:bg-white/20 hover:text-white">
+                  {gameState === 'paused' ? <Play /> : <Pause />}
+                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <Button size="icon" variant="ghost" className="rounded-full text-white hover:bg-white/20 hover:text-white"><RefreshCw /></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure you want to restart?</AlertDialogTitle>
+                            <AlertDialogDescription>Your current progress will be lost.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleRestart}>Restart</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
             <div className="flex items-center gap-2"><Timer />{gameTimeLeft}s</div>
          </div>
          {isGameRunning && (
@@ -361,7 +421,7 @@ export function FriendlyFacesGameClient() {
         </div>
       )}
 
-      {(gameState === 'listening' || gameState === 'analyzing') && hasMicPermission !== false && (
+      {(gameState === 'playing' || gameState === 'analyzing') && hasMicPermission !== false && (
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-center gap-2">
                <p className="font-bold text-white text-center bg-black/30 backdrop-blur-sm py-2 px-4 rounded-full">
                   {status.text}
