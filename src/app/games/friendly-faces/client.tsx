@@ -36,8 +36,8 @@ export function FriendlyFacesGameClient() {
   }, []);
 
   const handleHelloDetected = useCallback(async () => {
-    setGameState('responding');
     stopDetection();
+    setGameState('responding');
     try {
       const { audioUrl: generatedAudioUrl } = await generateSpeech({ text: 'Hi friend' });
       setResponseAudioUrl(generatedAudioUrl);
@@ -200,13 +200,11 @@ export function FriendlyFacesGameClient() {
     );
   }
 
-  if (gameState === 'end' || gameState === 'responding') {
+  if (gameState === 'end') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <h2 className="text-2xl font-bold mb-4">You made a new friend!</h2>
-        { gameState === 'responding' && <Progress value={100} className="w-1/2 my-4 animate-pulse" />}
-        { gameState === 'end' && <Button onClick={handleRestart} className="mt-4">Play Again</Button> }
-        {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={() => setGameState('end')} />}
+        <Button onClick={handleRestart} className="mt-4">Play Again</Button>
       </div>
     );
   }
@@ -214,6 +212,7 @@ export function FriendlyFacesGameClient() {
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
       {promptAudioUrl && <audio ref={promptAudioRef} src={promptAudioUrl} loop />}
+      {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={() => setGameState('end')} />}
 
       <div
         className="absolute inset-0 flex flex-col items-center justify-center"
@@ -231,6 +230,9 @@ export function FriendlyFacesGameClient() {
           </video>
         </div>
       </div>
+      
+      {gameState === 'responding' &&  <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Progress value={100} className="w-1/2 animate-pulse" /></div> }
+
 
       {gameState === 'listening' && hasMicPermission && (
           <div className="absolute bottom-4 left-4 right-4 z-20">

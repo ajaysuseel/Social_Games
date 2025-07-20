@@ -49,7 +49,7 @@ const speechFlow = ai.defineFlow(
       },
       // Instruct the model on the delivery style for a softer tone.
       prompt: `<speak>
-        <prosody rate="slow" pitch="-2st">
+        <prosody pitch="-2st">
           ${input.text}
         </prosody>
       </speak>`,
