@@ -44,13 +44,6 @@ export function FriendlyFacesGameClient() {
 
   const currentCharacter = gameCharacters[currentCharacterIndex];
 
-  const playGreetingSound = useCallback(() => {
-    if (soundEnabled && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
-    }
-  }, [soundEnabled]);
-
   const stopAllTimers = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -61,6 +54,13 @@ export function FriendlyFacesGameClient() {
       successTimeoutRef.current = null;
     }
   }, []);
+
+  const playGreetingSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+    }
+  }, [soundEnabled]);
 
   const nextCharacter = useCallback(() => {
     stopAllTimers();
@@ -75,8 +75,8 @@ export function FriendlyFacesGameClient() {
   }, [currentCharacterIndex, numFriends, stopAllTimers]);
 
   useEffect(() => {
+    // Main game loop timer
     if (gameState === 'playing' && !showSmile) {
-      playGreetingSound();
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -86,14 +86,20 @@ export function FriendlyFacesGameClient() {
           return prev - 1;
         });
       }, 1000);
-    } else if (gameState !== 'playing' || showSmile) {
-      stopAllTimers();
     }
 
     return () => {
-      stopAllTimers();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [gameState, showSmile, nextCharacter]);
+  
+  useEffect(() => {
+    if (gameState === 'playing' && !showSmile) {
+      playGreetingSound();
     }
-  }, [gameState, showSmile, nextCharacter, playGreetingSound, stopAllTimers]);
+  }, [gameState, showSmile, currentCharacterIndex, playGreetingSound]);
 
 
   const handleMakeFriend = () => {
@@ -116,6 +122,7 @@ export function FriendlyFacesGameClient() {
     const charactersForGame: {name: string; src: string}[] = [];
 
     for (let i = 0; i < numFriends; i++) {
+        // Use unique characters first, then repeat randomly if needed
         if (i < shuffled.length) {
             charactersForGame.push(shuffled[i]);
         } else {
@@ -143,8 +150,8 @@ export function FriendlyFacesGameClient() {
   
   const handleRestart = () => {
     stopAllTimers();
+    // Reset to start screen to allow changing number of friends
     setGameState('start');
-    handleStart();
   };
   
   const handlePause = () => {
@@ -268,17 +275,25 @@ export function FriendlyFacesGameClient() {
         </div>
       </div>
       
-      {showSmile &&  (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+      <AnimatePresence>
+        {showSmile &&  (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/40 flex items-center justify-center z-20"
           >
-            <Smile className="w-16 h-16 md:w-24 md:h-24 text-yellow-300" />
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+            >
+              <Smile className="w-16 h-16 md:w-24 md:h-24 text-yellow-300" />
+            </motion.div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+      
 
       {gameState === 'playing' && (
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-center gap-2">
