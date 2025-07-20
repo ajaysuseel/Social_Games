@@ -111,27 +111,24 @@ export function FriendlyFacesGameClient() {
   
   const handleStart = () => {
     stopAllTimers();
-    const randomizedCharacters: {name: string; src: string}[] = [];
-    const usedIndexes = new Set<number>();
+    
+    // Shuffle the available characters to get a random order
+    const shuffled = [...availableCharacters].sort(() => 0.5 - Math.random());
+    const charactersForGame: {name: string; src: string}[] = [];
 
+    // Fill the game with characters
     for (let i = 0; i < numFriends; i++) {
-        let nextCharacterIndex;
-        if (availableCharacters.length <= 1) {
-            nextCharacterIndex = 0;
+        // Use the shuffled unique list first
+        if (i < shuffled.length) {
+            charactersForGame.push(shuffled[i]);
         } else {
-            do {
-                nextCharacterIndex = Math.floor(Math.random() * availableCharacters.length);
-            } while (usedIndexes.has(nextCharacterIndex));
-        }
-        
-        randomizedCharacters.push(availableCharacters[nextCharacterIndex]);
-        usedIndexes.add(nextCharacterIndex);
-        if(usedIndexes.size >= availableCharacters.length) {
-            usedIndexes.clear();
+            // If more friends are needed than available, pick randomly from the original pool
+            const randomIndex = Math.floor(Math.random() * availableCharacters.length);
+            charactersForGame.push(availableCharacters[randomIndex]);
         }
     }
     
-    setGameCharacters(randomizedCharacters);
+    setGameCharacters(charactersForGame);
     setFriendsMade(0);
     setCurrentCharacterIndex(0);
     setTimeLeft(TURN_DURATION);
