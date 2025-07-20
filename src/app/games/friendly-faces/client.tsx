@@ -27,6 +27,7 @@ const availableCharacters = [
 
 const GREETING_AUDIO_SRC = '/audio/hai.mp3';
 const TURN_DURATION = 7; // in seconds
+const PROMPT_INTERVAL = 3000; // 3 seconds
 
 export function FriendlyFacesGameClient() {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'paused' | 'win'>('start');
@@ -40,18 +41,23 @@ export function FriendlyFacesGameClient() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const promptIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentCharacter = gameCharacters[currentCharacterIndex];
 
-  const stopTimer = useCallback(() => {
+  const stopAllTimers = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (promptIntervalRef.current) {
+      clearInterval(promptIntervalRef.current);
+      promptIntervalRef.current = null;
+    }
   }, []);
 
   const nextCharacter = useCallback((success: boolean) => {
-    stopTimer();
+    stopAllTimers();
     setShowSmile(false);
 
     const newFriendsMade = success ? friendsMade + 1 : friendsMade;
@@ -64,21 +70,21 @@ export function FriendlyFacesGameClient() {
       setTimeLeft(TURN_DURATION);
       // gameState remains 'playing'
     }
-  }, [friendsMade, numFriends, currentCharacterIndex, stopTimer]);
+  }, [friendsMade, numFriends, currentCharacterIndex, stopAllTimers]);
 
 
   const handleMakeFriend = () => {
     if (gameState !== 'playing' || showSmile) return;
+    stopAllTimers();
 
     if (soundEnabled && audioRef.current) {
-        // Play on click as a fallback if autoplay was blocked
+        // Play on click as a final confirmation if needed
         if(audioRef.current.paused) {
             audioRef.current.currentTime = 0; 
-            audioRef.current.play();
+            audioRef.current.play().catch(e => console.error("Error playing sound on click:", e));
         }
     }
     setShowSmile(true);
-    stopTimer(); // Stop the timer on success
     setTimeout(() => {
         nextCharacter(true);
     }, 1500); // Show smile for 1.5 seconds
@@ -114,11 +120,7 @@ export function FriendlyFacesGameClient() {
   
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
-      if(soundEnabled && audioRef.current){
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(error => console.warn("Audio autoplay was blocked by the browser."));
-      }
-
+      // Main turn countdown timer
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -129,20 +131,32 @@ export function FriendlyFacesGameClient() {
           return prev - 1;
         });
       }, 1000);
+
+      // Repeating audio prompt timer
+      if (soundEnabled && audioRef.current) {
+        const playPrompt = () => {
+            if (audioRef.current) {
+                audioRef.current.currentTime = 0;
+                audioRef.current.play().catch(error => console.warn("Audio autoplay was blocked by the browser."));
+            }
+        };
+        playPrompt(); // Play immediately on turn start
+        promptIntervalRef.current = setInterval(playPrompt, PROMPT_INTERVAL);
+      }
     }
 
-    return () => stopTimer();
-  }, [gameState, showSmile, stopTimer, nextCharacter, currentCharacterIndex, soundEnabled]); // re-run timer when character changes
+    return () => stopAllTimers();
+  }, [gameState, showSmile, stopAllTimers, nextCharacter, currentCharacterIndex, soundEnabled]);
 
 
   const handleRestart = () => {
-    stopTimer();
+    stopAllTimers();
     setGameState('start');
   };
   
   const handlePause = () => {
     if (gameState !== 'playing') return;
-    stopTimer();
+    stopAllTimers();
     setGameState('paused');
   }
 
@@ -152,8 +166,8 @@ export function FriendlyFacesGameClient() {
   }
   
   useEffect(() => {
-      return () => stopTimer();
-  }, [stopTimer]);
+      return () => stopAllTimers();
+  }, [stopAllTimers]);
 
   if (gameState === 'start') {
     return (
