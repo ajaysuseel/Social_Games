@@ -61,8 +61,8 @@ export function FriendlyFacesGameClient() {
       setGameState('win');
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
-      setGameState('playing');
       setTimeLeft(TURN_DURATION);
+      // gameState remains 'playing'
     }
   }, [friendsMade, numFriends, currentCharacterIndex, stopTimer]);
 
@@ -103,7 +103,7 @@ export function FriendlyFacesGameClient() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !audioRef.current) {
         audioRef.current = new Audio(GREETING_AUDIO_SRC);
         audioRef.current.preload = 'auto';
     }
@@ -112,20 +112,19 @@ export function FriendlyFacesGameClient() {
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
       timerRef.current = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            nextCharacter(false);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else {
-      stopTimer();
     }
 
     return () => stopTimer();
-  }, [gameState, showSmile, stopTimer]);
-  
-  useEffect(() => {
-    if (timeLeft <= 0) {
-      nextCharacter(false);
-    }
-  }, [timeLeft, nextCharacter]);
+  }, [gameState, showSmile, stopTimer, nextCharacter, currentCharacterIndex]); // re-run timer when character changes
 
 
   const handleRestart = () => {
