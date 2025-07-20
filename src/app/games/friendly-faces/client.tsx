@@ -27,7 +27,6 @@ const availableCharacters = [
 
 const GREETING_AUDIO_SRC = '/audio/hai.mp3';
 const TURN_DURATION = 7; // in seconds
-const PROMPT_INTERVAL = 3000; // 3 seconds
 
 export function FriendlyFacesGameClient() {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'paused' | 'win'>('start');
@@ -41,7 +40,6 @@ export function FriendlyFacesGameClient() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const promptIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentCharacter = gameCharacters[currentCharacterIndex];
 
@@ -50,18 +48,15 @@ export function FriendlyFacesGameClient() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    if (promptIntervalRef.current) {
-      clearInterval(promptIntervalRef.current);
-      promptIntervalRef.current = null;
-    }
   }, []);
 
   const nextCharacter = useCallback((success: boolean) => {
     stopAllTimers();
     setShowSmile(false);
 
-    const newFriendsMade = success ? friendsMade + 1 : friendsMade;
-    setFriendsMade(newFriendsMade);
+    if (success) {
+      setFriendsMade(prev => prev + 1);
+    }
 
     if (currentCharacterIndex + 1 >= numFriends) {
       setGameState('win');
@@ -70,20 +65,19 @@ export function FriendlyFacesGameClient() {
       setTimeLeft(TURN_DURATION);
       // gameState remains 'playing'
     }
-  }, [friendsMade, numFriends, currentCharacterIndex, stopAllTimers]);
+  }, [numFriends, currentCharacterIndex, stopAllTimers]);
 
+  const playGreetingSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+    }
+  }, [soundEnabled]);
 
   const handleMakeFriend = () => {
     if (gameState !== 'playing' || showSmile) return;
     stopAllTimers();
-
-    if (soundEnabled && audioRef.current) {
-        // Play on click as a final confirmation if needed
-        if(audioRef.current.paused) {
-            audioRef.current.currentTime = 0; 
-            audioRef.current.play().catch(e => console.error("Error playing sound on click:", e));
-        }
-    }
+    playGreetingSound();
     setShowSmile(true);
     setTimeout(() => {
         nextCharacter(true);
@@ -115,11 +109,15 @@ export function FriendlyFacesGameClient() {
     if (typeof window !== 'undefined' && !audioRef.current) {
         audioRef.current = new Audio(GREETING_AUDIO_SRC);
         audioRef.current.preload = 'auto';
+        audioRef.current.volume = 0.3; // Set volume to 30%
     }
   }, []);
   
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
+      // Play sound at the beginning of the turn
+      playGreetingSound();
+
       // Main turn countdown timer
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
@@ -131,22 +129,10 @@ export function FriendlyFacesGameClient() {
           return prev - 1;
         });
       }, 1000);
-
-      // Repeating audio prompt timer
-      if (soundEnabled && audioRef.current) {
-        const playPrompt = () => {
-            if (audioRef.current) {
-                audioRef.current.currentTime = 0;
-                audioRef.current.play().catch(error => console.warn("Audio autoplay was blocked by the browser."));
-            }
-        };
-        playPrompt(); // Play immediately on turn start
-        promptIntervalRef.current = setInterval(playPrompt, PROMPT_INTERVAL);
-      }
     }
 
     return () => stopAllTimers();
-  }, [gameState, showSmile, stopAllTimers, nextCharacter, currentCharacterIndex, soundEnabled]);
+  }, [gameState, showSmile, stopAllTimers, nextCharacter, currentCharacterIndex, playGreetingSound]);
 
 
   const handleRestart = () => {
