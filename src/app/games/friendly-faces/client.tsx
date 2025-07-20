@@ -40,6 +40,7 @@ export function FriendlyFacesGameClient() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentCharacter = gameCharacters[currentCharacterIndex];
 
@@ -47,6 +48,10 @@ export function FriendlyFacesGameClient() {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+    if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = null;
     }
   }, []);
 
@@ -63,7 +68,6 @@ export function FriendlyFacesGameClient() {
     }
   }, [currentCharacterIndex, numFriends, stopAllTimers]);
 
-
   const playGreetingSound = useCallback(() => {
     if (soundEnabled && audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -77,7 +81,7 @@ export function FriendlyFacesGameClient() {
     playGreetingSound();
     setShowSmile(true);
     setFriendsMade(prev => prev + 1);
-    setTimeout(() => {
+    successTimeoutRef.current = setTimeout(() => {
         nextCharacter();
     }, 1500); // Show smile for 1.5 seconds
   }
@@ -118,7 +122,6 @@ export function FriendlyFacesGameClient() {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            clearInterval(timerRef.current!);
             nextCharacter();
             return 0;
           }
@@ -128,7 +131,7 @@ export function FriendlyFacesGameClient() {
     }
 
     return () => stopAllTimers();
-  }, [gameState, showSmile, stopAllTimers, nextCharacter, currentCharacterIndex, playGreetingSound]);
+  }, [gameState, showSmile, nextCharacter, playGreetingSound, currentCharacterIndex]);
 
 
   const handleRestart = () => {
