@@ -43,7 +43,7 @@ const speechFlow = ai.defineFlow(
         speechConfig: {
           voiceConfig: {
             // A soft, friendly, and calming female voice
-            prebuiltVoiceConfig: {voiceName: 'Stellifer'}, 
+            prebuiltVoiceConfig: {voiceName: 'vindemiatrix'}, 
           },
         },
       },
