@@ -11,7 +11,7 @@ export default function FriendlyFacesPage() {
           Click the button to make a new friend!
         </p>
       </header>
-      <div className="flex-grow relative">
+      <div className="flex-grow relative min-h-[50vh] md:min-h-0">
         <FriendlyFacesGameClient />
       </div>
     </div>

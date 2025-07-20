@@ -13,7 +13,7 @@ export default function TurnTakingPage() {
         </p>
       </header>
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 md:p-0">
           <BubbleHarmonyGame />
         </CardContent>
       </Card>

@@ -87,13 +87,13 @@ export function FriendlyFacesGameClient() {
         });
       }, 1000);
     } else if (gameState !== 'playing' || showSmile) {
-      if (timerRef.current) clearInterval(timerRef.current);
+      stopAllTimers();
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      stopAllTimers();
     }
-  }, [gameState, showSmile, nextCharacter, playGreetingSound]);
+  }, [gameState, showSmile, nextCharacter, playGreetingSound, stopAllTimers]);
 
 
   const handleMakeFriend = () => {
@@ -112,17 +112,13 @@ export function FriendlyFacesGameClient() {
   const handleStart = () => {
     stopAllTimers();
     
-    // Shuffle the available characters to get a random order
     const shuffled = [...availableCharacters].sort(() => 0.5 - Math.random());
     const charactersForGame: {name: string; src: string}[] = [];
 
-    // Fill the game with characters
     for (let i = 0; i < numFriends; i++) {
-        // Use the shuffled unique list first
         if (i < shuffled.length) {
             charactersForGame.push(shuffled[i]);
         } else {
-            // If more friends are needed than available, pick randomly from the original pool
             const randomIndex = Math.floor(Math.random() * availableCharacters.length);
             charactersForGame.push(availableCharacters[randomIndex]);
         }
@@ -148,6 +144,7 @@ export function FriendlyFacesGameClient() {
   const handleRestart = () => {
     stopAllTimers();
     setGameState('start');
+    handleStart();
   };
   
   const handlePause = () => {
@@ -168,7 +165,7 @@ export function FriendlyFacesGameClient() {
   if (gameState === 'start') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-full">
-        <h2 className="text-2xl font-bold mb-4">Ready to make new friends?</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">Ready to make new friends?</h2>
         <div className="flex flex-col items-center gap-4 mb-6">
             <Label htmlFor="num-friends-select">How many friends do you want to meet?</Label>
             <Select value={String(numFriends)} onValueChange={(value) => setNumFriends(Number(value))}>
@@ -189,7 +186,7 @@ export function FriendlyFacesGameClient() {
   
   if (gameState === 'win') {
     return (
-      <div className="flex flex-col items-center justify-center p-8 h-96">
+      <div className="flex flex-col items-center justify-center p-8 h-full text-center">
         <Trophy className="w-16 h-16 text-yellow-400 mb-4" />
         <h2 className="text-2xl font-bold mb-4">You made {friendsMade} new friend{friendsMade === 1 ? '' : 's'}!</h2>
         {friendsMade > 0 && (
@@ -207,7 +204,7 @@ export function FriendlyFacesGameClient() {
   const isGameRunning = ['playing', 'paused'].includes(gameState) && currentCharacter;
 
   return (
-    <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
+    <div className="absolute inset-0 bg-gray-900 rounded-lg overflow-hidden flex flex-col">
        <AnimatePresence>
         {gameState === 'paused' && (
            <motion.div 
@@ -224,16 +221,16 @@ export function FriendlyFacesGameClient() {
         )}
       </AnimatePresence>
 
-      <div className="absolute top-4 left-4 right-4 z-20 space-y-2">
-         <div className="flex justify-between items-center bg-black/30 backdrop-blur-sm p-3 rounded-full text-white font-bold">
-            <div>Friends Made: {friendsMade} / {numFriends}</div>
-             <div className="flex items-center gap-2">
-                <Button onClick={gameState === 'paused' ? handleResume : handlePause} size="icon" variant="ghost" className="rounded-full text-white hover:bg-white/20 hover:text-white">
+      <div className="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-20 space-y-2">
+         <div className="flex justify-between items-center bg-black/30 backdrop-blur-sm p-2 md:p-3 rounded-full text-white font-bold text-sm md:text-base">
+            <div>Friends: {friendsMade} / {numFriends}</div>
+             <div className="flex items-center gap-1 md:gap-2">
+                <Button onClick={gameState === 'paused' ? handleResume : handlePause} size="icon" variant="ghost" className="rounded-full text-white hover:bg-white/20 hover:text-white w-8 h-8 md:w-10 md:h-10">
                   {gameState === 'paused' ? <Play /> : <Pause />}
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                       <Button size="icon" variant="ghost" className="rounded-full text-white hover:bg-white/20 hover:text-white"><RefreshCw /></Button>
+                       <Button size="icon" variant="ghost" className="rounded-full text-white hover:bg-white/20 hover:text-white w-8 h-8 md:w-10 md:h-10"><RefreshCw /></Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
@@ -278,20 +275,20 @@ export function FriendlyFacesGameClient() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <Smile className="w-24 h-24 text-yellow-300" />
+            <Smile className="w-16 h-16 md:w-24 md:h-24 text-yellow-300" />
           </motion.div>
         </div>
       )}
 
       {gameState === 'playing' && (
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-center gap-2">
-               <p className="font-bold text-white text-center bg-black/30 backdrop-blur-sm py-2 px-4 rounded-full">
+               <p className="font-bold text-white text-center bg-black/30 backdrop-blur-sm py-2 px-4 rounded-full text-sm">
                   Click the moving hand to greet your new friend!
                </p>
                 <motion.div
                     animate={{
-                        x: [-100, 100, -100],
-                        y: [0, -50, 0],
+                        x: [-50, 50, -50],
+                        y: [0, -30, 0],
                     }}
                     transition={{
                         duration: 8,
@@ -304,7 +301,7 @@ export function FriendlyFacesGameClient() {
                         onClick={handleMakeFriend} 
                         disabled={showSmile}
                         size="icon"
-                        className="rounded-full w-16 h-16"
+                        className="rounded-full w-14 h-14 md:w-16 md:h-16"
                     >
                         <Hand className="w-6 h-6" />
                     </Button>

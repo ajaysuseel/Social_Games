@@ -172,7 +172,7 @@ export function AnimalTapClient() {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <h2 className="text-2xl font-bold mb-4">Ready to tap some animals?</h2>
-        <p className="text-muted-foreground mb-6">Tap as many as you can before time runs out!</p>
+        <p className="text-muted-foreground mb-6 text-center">Tap as many as you can before time runs out!</p>
         <Button onClick={startGame} size="lg">Start Game</Button>
       </div>
     );
@@ -206,18 +206,19 @@ export function AnimalTapClient() {
         )}
       </AnimatePresence>
 
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-center bg-white/70 dark:bg-black/70 backdrop-blur-sm p-3 rounded-full shadow-lg">
-        <div className="flex items-center gap-2 font-bold text-lg">
-            <Rabbit className="text-primary"/>
-            <span>Score: {score}</span>
+      <div className="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-10 flex justify-between items-center bg-white/70 dark:bg-black/70 backdrop-blur-sm p-2 md:p-3 rounded-full shadow-lg">
+        <div className="flex items-center gap-1 md:gap-2 font-bold text-sm md:text-lg">
+            <Rabbit className="text-primary w-5 h-5 md:w-6 md:h-6"/>
+            <span className="hidden sm:inline">Score:</span>
+            <span>{score}</span>
         </div>
-        <div className="flex items-center gap-2">
-            <Button onClick={gameState === 'paused' ? resumeGame : pauseGame} size="icon" variant="ghost" className="rounded-full">
+        <div className="flex items-center gap-1 md:gap-2">
+            <Button onClick={gameState === 'paused' ? resumeGame : pauseGame} size="icon" variant="ghost" className="rounded-full w-8 h-8 md:w-10 md:h-10">
               {gameState === 'paused' ? <Play /> : <Pause />}
             </Button>
              <AlertDialog>
                 <AlertDialogTrigger asChild>
-                   <Button size="icon" variant="ghost" className="rounded-full"><RefreshCw /></Button>
+                   <Button size="icon" variant="ghost" className="rounded-full w-8 h-8 md:w-10 md:h-10"><RefreshCw /></Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -231,9 +232,10 @@ export function AnimalTapClient() {
                 </AlertDialogContent>
             </AlertDialog>
         </div>
-        <div className="flex items-center gap-2 font-bold text-lg">
-            <Timer className="text-destructive"/>
-            <span>Time: {timeLeft}s</span>
+        <div className="flex items-center gap-1 md:gap-2 font-bold text-sm md:text-lg">
+            <Timer className="text-destructive w-5 h-5 md:w-6 md:h-6"/>
+             <span className="hidden sm:inline">Time:</span>
+            <span>{timeLeft}s</span>
         </div>
       </div>
       

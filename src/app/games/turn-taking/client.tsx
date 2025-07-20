@@ -199,7 +199,7 @@ export function BubbleHarmonyGame() {
 
   if (gameState === 'end') {
     return (
-      <div className="flex flex-col items-center justify-center p-8 h-96">
+      <div className="flex flex-col items-center justify-center p-8 h-96 text-center">
         <h2 className="text-2xl font-bold mb-4">Great job!</h2>
         <p className="mb-2 text-lg">Player 1: <span className="font-bold">{scores.P1}</span> points</p>
         <p className="mb-4 text-lg">Player 2: <span className="font-bold">{scores.P2}</span> points</p>
@@ -223,7 +223,7 @@ export function BubbleHarmonyGame() {
             exit={{ opacity: 0, y: 50 }}
             className="absolute inset-0 z-20 flex items-center justify-center bg-black/30 backdrop-blur-sm"
           >
-            <h2 className="text-4xl font-bold text-white drop-shadow-lg">{players[currentPlayer].name}'s Turn!</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg text-center">{players[currentPlayer].name}'s Turn!</h2>
           </motion.div>
         )}
          {gameState === 'paused' && (
@@ -241,24 +241,20 @@ export function BubbleHarmonyGame() {
         )}
       </AnimatePresence>
 
-      <div className="absolute top-4 left-4 right-4 z-10">
+      <div className="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-10 space-y-2">
         <div className="flex justify-between items-center bg-white/50 dark:bg-black/50 p-2 rounded-full shadow-md backdrop-blur-sm">
            <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full ${players.P1.color} border-4 ${currentPlayer === 'P1' && gameState==='playing' ? 'border-primary' : 'border-transparent'}`}></div>
+            <div className={cn('w-6 h-6 md:w-8 md:h-8 rounded-full border-4', players.P1.color, currentPlayer === 'P1' && gameState==='playing' ? 'border-primary' : 'border-transparent')}></div>
             <span className="font-bold text-lg">{scores.P1}</span>
            </div>
-           <div className="flex-1 px-4 text-center">
+           <div className="flex-1 px-2 text-center">
              <div className="flex items-center justify-center gap-2">
-                <Button onClick={gameState === 'paused' ? handleResume : handlePause} size="icon" variant="ghost" className="rounded-full">
+                <Button onClick={gameState === 'paused' ? handleResume : handlePause} size="icon" variant="ghost" className="rounded-full w-8 h-8 md:w-10 md:h-10">
                   {gameState === 'paused' ? <Play /> : <Pause />}
                 </Button>
-                <div className="flex flex-col items-center">
-                    <p className="font-bold">Round {round}/{GAME_ROUNDS}</p>
-                    <p className="text-sm text-muted-foreground">{getStatusText()}</p>
-                </div>
-                 <AlertDialog>
+                <AlertDialog>
                     <AlertDialogTrigger asChild>
-                       <Button size="icon" variant="ghost" className="rounded-full"><RefreshCw /></Button>
+                       <Button size="icon" variant="ghost" className="rounded-full w-8 h-8 md:w-10 md:h-10"><RefreshCw /></Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
@@ -275,10 +271,12 @@ export function BubbleHarmonyGame() {
            </div>
             <div className="flex items-center gap-2">
             <span className="font-bold text-lg">{scores.P2}</span>
-            <div className={`w-8 h-8 rounded-full ${players.P2.color} border-4 ${currentPlayer === 'P2' && gameState==='playing' ? 'border-primary' : 'border-transparent'}`}></div>
+            <div className={cn('w-6 h-6 md:w-8 md:h-8 rounded-full border-4', players.P2.color, currentPlayer === 'P2' && gameState==='playing' ? 'border-primary' : 'border-transparent')}></div>
            </div>
         </div>
-        <div className="flex items-center justify-center mt-2 gap-4">
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
+            <p className="font-bold text-sm md:text-base">Round {round}/{GAME_ROUNDS}</p>
+            <p className="text-xs md:text-sm text-muted-foreground -mt-2">{getStatusText()}</p>
             <div className="flex items-center gap-1 text-sm font-bold bg-white/50 dark:bg-black/50 px-3 py-1 rounded-full w-24 justify-center">
                 <Timer className="w-4 h-4"/>
                 <span>{turnTimeLeft}s</span>
