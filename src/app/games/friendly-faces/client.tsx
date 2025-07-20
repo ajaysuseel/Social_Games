@@ -25,7 +25,7 @@ const availableCharacters = [
   { name: 'Friend 3', src: '/videos/friend3.mp4' },
 ];
 
-const GREETING_AUDIO_SRC = '/audio/hi-friend.mp3';
+const GREETING_AUDIO_SRC = '/audio/hai.mp3';
 const TURN_DURATION = 7; // in seconds
 
 export function FriendlyFacesGameClient() {
@@ -71,8 +71,11 @@ export function FriendlyFacesGameClient() {
     if (gameState !== 'playing' || showSmile) return;
 
     if (soundEnabled && audioRef.current) {
-        audioRef.current.currentTime = 0; // Rewind to start
-        audioRef.current.play();
+        // Play on click as a fallback if autoplay was blocked
+        if(audioRef.current.paused) {
+            audioRef.current.currentTime = 0; 
+            audioRef.current.play();
+        }
     }
     setShowSmile(true);
     stopTimer(); // Stop the timer on success
@@ -111,6 +114,11 @@ export function FriendlyFacesGameClient() {
   
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
+      if(soundEnabled && audioRef.current){
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(error => console.warn("Audio autoplay was blocked by the browser."));
+      }
+
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -124,7 +132,7 @@ export function FriendlyFacesGameClient() {
     }
 
     return () => stopTimer();
-  }, [gameState, showSmile, stopTimer, nextCharacter, currentCharacterIndex]); // re-run timer when character changes
+  }, [gameState, showSmile, stopTimer, nextCharacter, currentCharacterIndex, soundEnabled]); // re-run timer when character changes
 
 
   const handleRestart = () => {
