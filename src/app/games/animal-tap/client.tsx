@@ -69,7 +69,7 @@ export function AnimalTapClient() {
       ...randomAnimal,
       x: 10 + Math.random() * 80,
       y: 10 + Math.random() * 80,
-      size: 40 + Math.random() * 40, // Smaller animals
+      size: 40 + Math.random() * 40, // Varying animal sizes
       isMoving: false,
     };
 
@@ -96,7 +96,7 @@ export function AnimalTapClient() {
     setAnimalsOnScreen([]);
     clearAllTimeouts();
 
-    gameIntervalRef.current = setInterval(addAnimal, 1000); // Faster appearance
+    gameIntervalRef.current = setInterval(addAnimal, 1500); // Slower appearance
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
