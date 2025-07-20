@@ -11,8 +11,8 @@ const animals = [
   { name: 'Cat', src: '/images/animal-tap/cat.png' },
   { name: 'Dog', src: '/images/animal-tap/dog.png' },
   { name: 'Lion', src: '/images/animal-tap/lion.png' },
-  { name: 'Duck', src: '/images/animal-tap/duck.png' },
-  { name: 'Rabbit', src: '/images/animal-tap/rabbit.png' },
+  { name: 'Duck', src: '/images/animal-tap/duck.jpeg' },
+  { name: 'Rabbit', src: '/images/animal-tap/rabbit.jpeg' },
 ];
 
 const GAME_DURATION = 30; // in seconds
