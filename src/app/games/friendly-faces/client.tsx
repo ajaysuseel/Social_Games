@@ -6,7 +6,6 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { detectHello } from '@/ai/flows/detect-hello';
 import { generateSpeech } from '@/ai/flows/speech';
-import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Volume2 } from 'lucide-react';
 
 const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
@@ -243,7 +242,7 @@ export function FriendlyFacesGameClient() {
         </div>
       </div>
       
-      {gameState === 'responding' &&  <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Progress value={100} className="w-1/2 animate-pulse" /></div> }
+      {gameState === 'responding' &&  <div className="absolute inset-0 bg-black/20 flex items-center justify-center" /> }
 
 
       {gameState === 'listening' && hasMicPermission && (
