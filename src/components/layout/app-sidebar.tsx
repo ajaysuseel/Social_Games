@@ -8,6 +8,7 @@ import {
   Music,
   MousePointer2,
   Smile,
+  Hand,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -40,6 +41,11 @@ const menuItems = [
         label: 'Friendly Faces',
         href: '/games/friendly-faces',
         icon: Smile,
+      },
+      {
+        label: 'Animal Tap',
+        href: '/games/animal-tap',
+        icon: Hand,
       },
     ],
   },
