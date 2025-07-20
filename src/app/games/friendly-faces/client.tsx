@@ -6,22 +6,47 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { detectHello } from '@/ai/flows/detect-hello';
 import { generateSpeech } from '@/ai/flows/speech';
-import { Mic, MicOff, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, Trophy, Frown, Timer } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
-const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
+const characters = [
+  { name: 'Friend 1', src: '/videos/character.mp4' },
+  { name: 'Friend 2', src: '/videos/character.mp4' },
+  { name: 'Friend 3', src: '/videos/character.mp4' },
+  { name: 'Friend 4', src: '/videos/character.mp4' },
+  { name: 'Friend 5', src: '/videos/character.mp4' },
+];
+
+const GAME_DURATION = 60; // Total seconds for the game
+const TIME_PER_CHARACTER = 12; // Seconds per character
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'generating_prompt' | 'listening' | 'responding' | 'end'>('start');
+  const [gameState, setGameState] = useState<'start' | 'generating_prompt' | 'listening' | 'responding' | 'win' | 'lose'>('start');
   const [isDetecting, setIsDetecting] = useState(false);
   const [promptAudioUrl, setPromptAudioUrl] = useState<string | null>(null);
   const [responseAudioUrl, setResponseAudioUrl] = useState<string | null>(null);
+  const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
+  const [friendsMade, setFriendsMade] = useState(0);
+  const [gameTimeLeft, setGameTimeLeft] = useState(GAME_DURATION);
+  const [characterTimeLeft, setCharacterTimeLeft] = useState(TIME_PER_CHARACTER);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const detectionIntervalRef = useRef<NodeJS.Timeout>();
+  const gameTimerRef = useRef<NodeJS.Timeout>();
+  const characterTimerRef = useRef<NodeJS.Timeout>();
   const responseAudioRef = useRef<HTMLAudioElement>(null);
   const promptAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+  
+  const currentCharacter = characters[currentCharacterIndex];
+
+  const stopAllTimers = useCallback(() => {
+    if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+    if (characterTimerRef.current) clearInterval(characterTimerRef.current);
+    if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current);
+  }, []);
 
   const stopDetection = useCallback(() => {
     if (detectionIntervalRef.current) {
@@ -33,6 +58,23 @@ export function FriendlyFacesGameClient() {
     }
     setIsDetecting(false);
   }, []);
+  
+  const nextCharacter = useCallback(() => {
+    stopDetection();
+    if (characterTimerRef.current) clearInterval(characterTimerRef.current);
+
+    const newFriendsCount = friendsMade + 1;
+    setFriendsMade(newFriendsCount);
+
+    if (newFriendsCount === characters.length) {
+      setGameState('win');
+      stopAllTimers();
+    } else {
+      setCurrentCharacterIndex(prev => prev + 1);
+      setCharacterTimeLeft(TIME_PER_CHARACTER);
+      setGameState('generating_prompt');
+    }
+  }, [friendsMade, stopDetection, stopAllTimers]);
 
   const handleHelloDetected = useCallback(async () => {
     stopDetection();
@@ -47,21 +89,19 @@ export function FriendlyFacesGameClient() {
         title: 'Audio Generation Failed',
         description: 'Could not generate the response audio.'
       });
-      setGameState('end');
+      nextCharacter();
     }
-  }, [stopDetection, toast]);
+  }, [stopDetection, toast, nextCharacter]);
   
-  // Effect for playing the response audio
   useEffect(() => {
     if (gameState === 'responding' && responseAudioUrl && responseAudioRef.current) {
       responseAudioRef.current.play().catch(e => {
         console.error("Failed to play response audio", e);
-        setGameState('end');
+        nextCharacter();
       });
     }
-  }, [gameState, responseAudioUrl]);
+  }, [gameState, responseAudioUrl, nextCharacter]);
 
-  // Effect for playing the prompt audio periodically
   useEffect(() => {
     if (gameState === 'listening' && promptAudioUrl && promptAudioRef.current) {
       const playPrompt = () => {
@@ -70,13 +110,9 @@ export function FriendlyFacesGameClient() {
             promptAudioRef.current.play().catch(e => console.error("Could not play prompt audio", e));
         }
       };
-      
-      playPrompt(); // Play immediately
+      playPrompt();
       const promptInterval = setInterval(playPrompt, 6000);
-
-      return () => {
-        clearInterval(promptInterval);
-      };
+      return () => clearInterval(promptInterval);
     }
   }, [gameState, promptAudioUrl]);
 
@@ -101,76 +137,15 @@ export function FriendlyFacesGameClient() {
     };
   }, [isDetecting, handleHelloDetected]);
 
-  useEffect(() => {
-    const cleanup = () => {
-      stopDetection();
-      if (mediaRecorderRef.current) {
-        const stream = mediaRecorderRef.current.stream;
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-      }
-    };
-
-    if (gameState !== 'listening') {
-      cleanup();
-      return;
-    }
-
-    const getMicPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast({
-          variant: 'destructive',
-          title: 'Microphone Not Supported',
-          description: 'Your browser does not support microphone access.',
-        });
-        setHasMicPermission(false);
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setHasMicPermission(true);
-
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        mediaRecorderRef.current.ondataavailable = (event) => {
-          audioChunksRef.current.push(event.data);
-        };
-        mediaRecorderRef.current.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          handleDetection(audioBlob);
-          audioChunksRef.current = [];
-        };
-
-        detectionIntervalRef.current = setInterval(() => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive' && !isDetecting) {
-            mediaRecorderRef.current.start();
-            setTimeout(() => {
-              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-                mediaRecorderRef.current.stop();
-              }
-            }, 2000); // Record for 2 seconds
-          }
-        }, 3000); // Check every 3 seconds
-
-      } catch (error) {
-        console.error('Error accessing microphone:', error);
-        setHasMicPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Microphone Access Denied',
-          description: 'Please enable microphone permissions in your browser settings.',
-        });
-      }
-    };
-
-    getMicPermission();
-    return cleanup;
-  }, [gameState, toast, stopDetection, handleDetection, isDetecting]);
-  
-  const handleStart = async () => {
+  const startCharacterTurn = useCallback(async () => {
     setGameState('generating_prompt');
     setResponseAudioUrl(null);
     setPromptAudioUrl(null);
+
+     characterTimerRef.current = setInterval(() => {
+        setCharacterTimeLeft(prev => prev - 1);
+    }, 1000);
+
     try {
       const { audioUrl } = await generateSpeech({ text: 'Hello' });
       setPromptAudioUrl(audioUrl);
@@ -182,11 +157,95 @@ export function FriendlyFacesGameClient() {
         title: 'Audio Generation Failed',
         description: 'Could not generate the initial prompt audio.'
       });
-      setGameState('start');
+      setGameState('lose');
     }
+  }, [toast]);
+  
+  useEffect(() => {
+    if (gameState === 'generating_prompt') {
+        startCharacterTurn();
+    }
+  }, [gameState, currentCharacterIndex, startCharacterTurn]);
+
+  // Game Timers Logic
+  useEffect(() => {
+    if (gameTimeLeft <= 0 || characterTimeLeft < 0) {
+        if (gameState === 'listening' || gameState === 'generating_prompt' || gameState === 'responding') {
+            setGameState('lose');
+            stopAllTimers();
+        }
+    }
+  }, [gameTimeLeft, characterTimeLeft, gameState, stopAllTimers]);
+
+  useEffect(() => {
+    const cleanup = () => {
+      stopDetection();
+      stopAllTimers();
+      if (mediaRecorderRef.current) {
+        const stream = mediaRecorderRef.current.stream;
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+      }
+    };
+
+    if (gameState !== 'listening') {
+      stopDetection();
+      return;
+    }
+
+    const getMicPermission = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast({ variant: 'destructive', title: 'Microphone Not Supported' });
+        setHasMicPermission(false);
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setHasMicPermission(true);
+
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          handleDetection(audioBlob);
+          audioChunksRef.current = [];
+        };
+
+        detectionIntervalRef.current = setInterval(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive' && !isDetecting) {
+            mediaRecorderRef.current.start();
+            setTimeout(() => {
+              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop();
+            }, 2000);
+          }
+        }, 3000);
+
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        setHasMicPermission(false);
+        toast({ variant: 'destructive', title: 'Microphone Access Denied' });
+      }
+    };
+
+    getMicPermission();
+    return cleanup;
+  }, [gameState, toast, stopDetection, handleDetection, isDetecting, stopAllTimers]);
+  
+  const handleStart = async () => {
+    setFriendsMade(0);
+    setCurrentCharacterIndex(0);
+    setGameTimeLeft(GAME_DURATION);
+    setCharacterTimeLeft(TIME_PER_CHARACTER);
+    setGameState('generating_prompt');
+    
+    gameTimerRef.current = setInterval(() => {
+        setGameTimeLeft(prev => prev - 1);
+    }, 1000);
   };
   
   const handleRestart = () => {
+    stopAllTimers();
     setGameState('start');
     setHasMicPermission(null);
     setResponseAudioUrl(null);
@@ -196,49 +255,74 @@ export function FriendlyFacesGameClient() {
   if (gameState === 'start') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
-        <h2 className="text-2xl font-bold mb-4">Ready to make a new friend?</h2>
+        <h2 className="text-2xl font-bold mb-4">Ready to make new friends?</h2>
+        <p className="text-muted-foreground mb-6 text-center">You'll have {GAME_DURATION} seconds to greet all {characters.length} friends.</p>
         <Button onClick={handleStart}>Start Game</Button>
       </div>
     );
   }
   
-  if (gameState === 'generating_prompt') {
+  if (gameState === 'win') {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
-        <Volume2 className="w-12 h-12 text-primary animate-pulse mb-4" />
-        <h2 className="text-xl font-bold">Getting ready...</h2>
-      </div>
-    );
-  }
-
-  if (gameState === 'end') {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 h-96">
-        <h2 className="text-2xl font-bold mb-4">You made a new friend!</h2>
+        <Trophy className="w-16 h-16 text-yellow-400 mb-4" />
+        <h2 className="text-2xl font-bold mb-4">You made {friendsMade} new friends!</h2>
         <Button onClick={handleRestart} className="mt-4">Play Again</Button>
       </div>
     );
   }
+  
+  if (gameState === 'lose') {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 h-96">
+        <Frown className="w-16 h-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-4">Time's up!</h2>
+        <p className="text-muted-foreground">You made friends with {friendsMade} out of {characters.length}.</p>
+        <Button onClick={handleRestart} className="mt-4">Try Again</Button>
+      </div>
+    );
+  }
+
+  const isGameRunning = ['generating_prompt', 'listening', 'responding'].includes(gameState);
 
   return (
-    <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
+    <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
       {promptAudioUrl && <audio ref={promptAudioRef} src={promptAudioUrl} />}
-      {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={() => setGameState('end')} />}
+      {responseAudioUrl && <audio ref={responseAudioRef} src={responseAudioUrl} onEnded={nextCharacter} />}
 
-      <div
-        className="absolute inset-0 flex flex-col items-center justify-center"
-      >
-        <div className="w-full h-full relative">
-          <video
-            key={character.src}
-            className="w-full h-full object-contain"
-            autoPlay
-            loop
-            muted
-            playsInline
-          >
-            <source src={character.src} type="video/mp4" />
-          </video>
+      <div className="absolute top-4 left-4 right-4 z-20 space-y-2">
+         <div className="flex justify-between items-center bg-black/30 backdrop-blur-sm p-3 rounded-full text-white font-bold">
+            <div>Friends Made: {friendsMade} / {characters.length}</div>
+            <div className="flex items-center gap-2"><Timer />{gameTimeLeft}s</div>
+         </div>
+         {isGameRunning && (
+            <div className="space-y-1">
+                <p className="text-white text-xs text-center font-bold">Time for this friend: {characterTimeLeft}s</p>
+                <Progress value={(characterTimeLeft / TIME_PER_CHARACTER) * 100} className="h-2" />
+            </div>
+         )}
+      </div>
+
+      <div className="flex-grow relative">
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+            {isGameRunning && (
+                <video
+                    key={currentCharacter.src}
+                    className="w-full h-full object-contain"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                >
+                    <source src={currentCharacter.src} type="video/mp4" />
+                </video>
+            )}
+             {gameState === 'generating_prompt' && (
+                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                    <Volume2 className="w-12 h-12 text-primary animate-pulse mb-4" />
+                    <h2 className="text-xl font-bold text-white">Getting ready...</h2>
+                </div>
+            )}
         </div>
       </div>
       
@@ -250,7 +334,7 @@ export function FriendlyFacesGameClient() {
                <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
                     <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
                       {isDetecting ? <Mic className="animate-pulse text-destructive" /> : <Mic />}
-                      Say "Hello" to the character!
+                      Say "Hello" to {currentCharacter.name}!
                     </p>
                </div>
           </div>

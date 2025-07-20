@@ -8,7 +8,7 @@ export default function FriendlyFacesPage() {
           Friendly Faces
         </h1>
         <p className="text-muted-foreground text-lg">
-          Wave back to the friendly animals to say hello! A game to practice social greetings.
+          Say "hello" to all the friends before time runs out!
         </p>
       </header>
       <div className="flex-grow relative">
