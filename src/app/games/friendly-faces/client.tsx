@@ -74,6 +74,7 @@ export function FriendlyFacesGameClient() {
         }
       } catch (error) {
         console.error("Detection failed:", error);
+        // Do not stop detection on error, just log it. The user can try again.
       }
     }
     setIsDetecting(false);
@@ -81,7 +82,7 @@ export function FriendlyFacesGameClient() {
 
   useEffect(() => {
     if (gameState === 'playing' && hasCameraPermission) {
-      detectionIntervalRef.current = setInterval(handleDetection, 2000); // Check every 2 seconds
+      detectionIntervalRef.current = setInterval(handleDetection, 5000); // Check every 5 seconds
     } else {
       stopDetection();
     }
@@ -174,7 +175,6 @@ export function FriendlyFacesGameClient() {
       {audioUrl && <audio ref={audioRef} src={audioUrl} />}
 
       <motion.div
-        key={character.name}
         className="absolute inset-0 flex flex-col items-center justify-center"
       >
         <div className="w-full h-full relative">
