@@ -50,22 +50,19 @@ export function FriendlyFacesGameClient() {
     }
   }, []);
 
-  const nextCharacter = useCallback((success: boolean) => {
+  const nextCharacter = useCallback(() => {
     stopAllTimers();
     setShowSmile(false);
-
-    if (success) {
-      setFriendsMade(prev => prev + 1);
-    }
 
     if (currentCharacterIndex + 1 >= numFriends) {
       setGameState('win');
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
       setTimeLeft(TURN_DURATION);
-      // gameState remains 'playing'
+      setGameState('playing');
     }
-  }, [numFriends, currentCharacterIndex, stopAllTimers]);
+  }, [currentCharacterIndex, numFriends, stopAllTimers]);
+
 
   const playGreetingSound = useCallback(() => {
     if (soundEnabled && audioRef.current) {
@@ -79,8 +76,9 @@ export function FriendlyFacesGameClient() {
     stopAllTimers();
     playGreetingSound();
     setShowSmile(true);
+    setFriendsMade(prev => prev + 1);
     setTimeout(() => {
-        nextCharacter(true);
+        nextCharacter();
     }, 1500); // Show smile for 1.5 seconds
   }
 
@@ -115,15 +113,13 @@ export function FriendlyFacesGameClient() {
   
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
-      // Play sound at the beginning of the turn
       playGreetingSound();
 
-      // Main turn countdown timer
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
-            nextCharacter(false);
+            nextCharacter();
             return 0;
           }
           return prev - 1;
