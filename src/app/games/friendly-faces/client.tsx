@@ -17,6 +17,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useSettings } from '@/hooks/use-settings';
+import { generateSpeech } from '@/ai/flows/speech';
 
 
 const availableCharacters = [
@@ -34,8 +36,11 @@ export function FriendlyFacesGameClient() {
   const [numFriends, setNumFriends] = useState(3);
   const [gameCharacters, setGameCharacters] = useState<{name: string; src: string}[]>([]);
   const [showSmile, setShowSmile] = useState(false);
+  const [greetingAudioUrl, setGreetingAudioUrl] = useState<string | null>(null);
+  const { soundEnabled } = useSettings();
 
   const gameTimerRef = useRef<NodeJS.Timeout>();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const currentCharacter = gameCharacters[currentCharacterIndex];
 
@@ -60,6 +65,9 @@ export function FriendlyFacesGameClient() {
   const handleMakeFriend = () => {
     if (gameState !== 'playing') return;
 
+    if (soundEnabled && audioRef.current) {
+        audioRef.current.play();
+    }
     setShowSmile(true);
     setTimeout(() => {
         nextCharacter();
@@ -85,6 +93,13 @@ export function FriendlyFacesGameClient() {
     setCurrentCharacterIndex(0);
     setGameState('playing');
   };
+
+  useEffect(() => {
+    // Pre-generate the speech audio when the component mounts
+    generateSpeech({ text: "Hi friend!" }).then(result => {
+        setGreetingAudioUrl(result.audioUrl);
+    }).catch(console.error);
+  }, []);
 
   const handleRestart = () => {
     stopAllTimers();
@@ -142,6 +157,7 @@ export function FriendlyFacesGameClient() {
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
+       {greetingAudioUrl && <audio ref={audioRef} src={greetingAudioUrl} preload="auto" />}
        <AnimatePresence>
         {gameState === 'paused' && (
            <motion.div 
