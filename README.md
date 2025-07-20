@@ -19,7 +19,7 @@ To run this project on your local machine, you'll first need to clone the reposi
 First, open your terminal and clone the repository to your local machine:
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/ajaysuseel/Social_Games.git
 cd social-games
 ```
 
