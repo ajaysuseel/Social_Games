@@ -65,10 +65,8 @@ export function FriendlyFacesGameClient() {
   const nextCharacter = useCallback(() => {
     stopAllTimers();
     setShowSmile(false);
-
-    const isLastCharacter = currentCharacterIndex >= numFriends - 1;
-
-    if (isLastCharacter) {
+    
+    if (currentCharacterIndex >= numFriends - 1) {
       setGameState('win');
     } else {
       setCurrentCharacterIndex(prev => prev + 1);
@@ -78,15 +76,17 @@ export function FriendlyFacesGameClient() {
 
   const handleMakeFriend = () => {
     if (gameState !== 'playing' || showSmile) return;
+    
     stopAllTimers();
     playGreetingSound();
     setShowSmile(true);
     setFriendsMade(prev => prev + 1);
+    
     successTimeoutRef.current = setTimeout(() => {
         nextCharacter();
     }, 1500); // Show smile for 1.5 seconds
-  }
-
+  };
+  
   const handleStart = () => {
     const randomizedCharacters: {name: string; src: string}[] = [];
     let lastCharacterIndex = -1;
@@ -105,10 +105,10 @@ export function FriendlyFacesGameClient() {
     setFriendsMade(0);
     setCurrentCharacterIndex(0);
     setTimeLeft(TURN_DURATION);
+    setShowSmile(false);
     setGameState('playing');
   };
 
-  // Initialize Audio
   useEffect(() => {
     if (typeof window !== 'undefined' && !audioRef.current) {
         const audio = new Audio(GREETING_AUDIO_SRC);
@@ -118,20 +118,25 @@ export function FriendlyFacesGameClient() {
     }
   }, []);
 
-  // Game Timer Logic
+  useEffect(() => {
+    if (gameState === 'playing' && currentCharacter) {
+      playGreetingSound();
+    }
+  }, [gameState, currentCharacter, playGreetingSound]);
+
+
   useEffect(() => {
     if (gameState === 'playing' && !showSmile) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             nextCharacter();
-            return 0; // Return 0 to prevent negative values before interval clears
+            return 0;
           }
           return prev - 1;
         });
       }, 1000);
     }
-
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -139,14 +144,6 @@ export function FriendlyFacesGameClient() {
     };
   }, [gameState, showSmile, nextCharacter]);
   
-  // Audio playback on character change
-  useEffect(() => {
-      if (gameState === 'playing' && currentCharacter) {
-          playGreetingSound();
-      }
-  }, [gameState, currentCharacterIndex, playGreetingSound]); // Depend on index
-
-
   const handleRestart = () => {
     stopAllTimers();
     setGameState('start');
@@ -156,12 +153,12 @@ export function FriendlyFacesGameClient() {
     if (gameState !== 'playing') return;
     stopAllTimers();
     setGameState('paused');
-  }
+  };
 
   const handleResume = () => {
     if (gameState !== 'paused') return;
     setGameState('playing');
-  }
+  };
   
   useEffect(() => {
       return () => stopAllTimers();
@@ -193,12 +190,14 @@ export function FriendlyFacesGameClient() {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-96">
         <Trophy className="w-16 h-16 text-yellow-400 mb-4" />
-        <h2 className="text-2xl font-bold mb-4">You made {friendsMade} new friends!</h2>
-        <div className="flex flex-wrap justify-center gap-2 mt-2">
-          {Array.from({ length: friendsMade }).map((_, i) => (
-            <Smile key={i} className="w-8 h-8 text-yellow-400" />
-          ))}
-        </div>
+        <h2 className="text-2xl font-bold mb-4">You made {friendsMade} new friend{friendsMade === 1 ? '' : 's'}!</h2>
+        {friendsMade > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 mt-2">
+            {Array.from({ length: friendsMade }).map((_, i) => (
+              <Smile key={i} className="w-8 h-8 text-yellow-400" />
+            ))}
+          </div>
+        )}
         <Button onClick={handleRestart} className="mt-4">Play Again</Button>
       </div>
     );
@@ -242,7 +241,7 @@ export function FriendlyFacesGameClient() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleRestart}>Restart</AlertDialogAction>
+                            <AlertDialogAction onClick={handleStart}>Restart</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
