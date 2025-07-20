@@ -1,27 +1,84 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Hand } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { detectWave } from '@/ai/flows/detect-wave';
+import { Progress } from '@/components/ui/progress';
 
 const character = { name: 'Friendly Character', src: '/videos/character.mp4' };
 
 export function FriendlyFacesGameClient() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [gameState, setGameState] = useState<'start' | 'playing' | 'end'>('start');
+  const [isDetecting, setIsDetecting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const detectionIntervalRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
 
+  const stopDetection = useCallback(() => {
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = undefined;
+    }
+    setIsDetecting(false);
+  }, []);
+
+  const handleDetection = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || isDetecting) return;
+
+    setIsDetecting(true);
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const photoDataUri = canvas.toDataURL('image/jpeg');
+      
+      try {
+        const result = await detectWave({ photoDataUri });
+        if (result.isWaving) {
+          setGameState('end');
+          stopDetection();
+        }
+      } catch (error) {
+        console.error("Detection failed:", error);
+        // Optionally show a toast or message on detection error
+      }
+    }
+    setIsDetecting(false);
+  }, [isDetecting, stopDetection]);
+
   useEffect(() => {
-    if (gameState !== 'playing') {
+    if (gameState === 'playing' && hasCameraPermission) {
+      detectionIntervalRef.current = setInterval(handleDetection, 2000); // Check every 2 seconds
+    } else {
+      stopDetection();
+    }
+
+    return () => {
+      stopDetection();
+    };
+  }, [gameState, hasCameraPermission, handleDetection, stopDetection]);
+
+  useEffect(() => {
+    const cleanup = () => {
+      stopDetection();
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
         videoRef.current.srcObject = null;
       }
+    };
+
+    if (gameState !== 'playing') {
+      cleanup();
       return;
     }
 
@@ -55,17 +112,8 @@ export function FriendlyFacesGameClient() {
 
     getCameraPermission();
 
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [gameState, toast]);
-
-  const handleWaveBack = () => {
-    setGameState('end');
-  };
+    return cleanup;
+  }, [gameState, toast, stopDetection]);
   
   const handleStart = () => {
     setGameState('playing');
@@ -97,33 +145,36 @@ export function FriendlyFacesGameClient() {
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] hidden" autoPlay muted playsInline />
+      <canvas ref={canvasRef} className="hidden" />
+
       <AnimatePresence>
-          <motion.div
-            key={character.name}
-            className="absolute inset-0 flex flex-col items-center justify-center"
-          >
-             <div
-                className="w-full h-full relative"
-             >
-              <video
-                key={character.src}
-                className="w-full h-full object-contain"
-                autoPlay
-                loop
-                muted
-                playsInline
-              >
-                  <source src={character.src} type="video/mp4" />
-              </video>
-            </div>
-          </motion.div>
+        <motion.div
+          key={character.name}
+          className="absolute inset-0 flex flex-col items-center justify-center"
+        >
+          <div className="w-full h-full relative">
+            <video
+              key={character.src}
+              className="w-full h-full object-contain"
+              autoPlay
+              loop
+              muted
+              playsInline
+            >
+              <source src={character.src} type="video/mp4" />
+            </video>
+          </div>
+        </motion.div>
       </AnimatePresence>
 
-      <div className="absolute bottom-4 left-4 right-4 flex justify-center">
-        <Button onClick={handleWaveBack} size="lg">
-          <Hand className="mr-2" /> Wave Back
-        </Button>
-      </div>
+      {gameState === 'playing' && hasCameraPermission && (
+          <div className="absolute bottom-4 left-4 right-4 z-20">
+               <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
+                    <p className="font-bold text-card-foreground">Wave to the character to say hello!</p>
+                    {isDetecting && <Progress value={100} className="h-1 mt-2 animate-pulse" />}
+               </div>
+          </div>
+      )}
 
       {hasCameraPermission === false && (
         <div className="absolute inset-0 bg-black/70 flex items-center justify-center p-4">
