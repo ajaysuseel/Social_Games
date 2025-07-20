@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { detectHai } from '@/ai/flows/detect-hello';
-import { generateSpeech } from '@/ai/flows/speech';
 import { Mic, MicOff, Volume2, Trophy, Frown, Timer } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -19,7 +18,8 @@ const characters = [
 
 const GAME_DURATION = 60; // Total seconds for the game
 const TIME_PER_CHARACTER = 12; // Seconds per character
-const PROMPT_AUDIO_PATH = '/audio/hai.mp3'; // Path to your static audio file
+const PROMPT_AUDIO_PATH = '/audio/hai.mp3';
+const RESPONSE_AUDIO_PATH = '/audio/hi-friend.mp3'; // Path for static response
 
 export function FriendlyFacesGameClient() {
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
@@ -79,19 +79,8 @@ export function FriendlyFacesGameClient() {
   const handleHaiDetected = useCallback(async () => {
     stopDetection();
     setGameState('responding');
-    try {
-      const { audioUrl: generatedAudioUrl } = await generateSpeech({ text: 'Hi friend' });
-      setResponseAudioUrl(generatedAudioUrl);
-    } catch(e) {
-      console.error("Failed to generate speech", e);
-      toast({
-        variant: 'destructive',
-        title: 'Audio Generation Failed',
-        description: 'Could not generate the response audio.'
-      });
-      nextCharacter();
-    }
-  }, [stopDetection, toast, nextCharacter]);
+    setResponseAudioUrl(RESPONSE_AUDIO_PATH);
+  }, [stopDetection]);
   
   useEffect(() => {
     if (gameState === 'responding' && responseAudioUrl && responseAudioRef.current) {
@@ -105,6 +94,9 @@ export function FriendlyFacesGameClient() {
   useEffect(() => {
     if (promptAudioRef.current) {
         promptAudioRef.current.volume = 0.5; // Set volume to 50%
+    }
+    if (responseAudioRef.current) {
+        responseAudioRef.current.volume = 0.5; // Set volume to 50%
     }
     if (gameState === 'listening' && promptAudioRef.current) {
       const playPrompt = () => {
@@ -283,7 +275,6 @@ export function FriendlyFacesGameClient() {
          {isGameRunning && (
             <div className="space-y-1">
                 <p className="text-white text-xs text-center font-bold">Time for this friend: {characterTimeLeft}s</p>
-                <Progress value={(characterTimeLeft / TIME_PER_CHARACTER) * 100} className="h-2" />
             </div>
          )}
       </div>
