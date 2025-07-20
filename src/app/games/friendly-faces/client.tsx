@@ -147,7 +147,7 @@ export function FriendlyFacesGameClient() {
       if (!mediaRecorderRef.current) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setHasMicPermission(true);
-        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
 
         mediaRecorderRef.current.ondataavailable = (event) => {
             audioChunksRef.current.push(event.data);
@@ -155,14 +155,14 @@ export function FriendlyFacesGameClient() {
 
         mediaRecorderRef.current.onstop = async () => {
             setIsRecording(false);
-            if (gameState !== 'listening') return; // Don't analyze if we've moved on
+            if (gameState !== 'listening') return;
             
             setGameState('analyzing');
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
             audioChunksRef.current = [];
 
-            if (audioBlob.size < 1000) { // If blob is too small, likely silent.
-              analysisTimeoutRef.current = setTimeout(() => setGameState('listening'), 1000);
+            if (audioBlob.size < 1000) {
+              setGameState('listening');
               return;
             }
             
@@ -175,17 +175,12 @@ export function FriendlyFacesGameClient() {
                 if (saidHai) {
                   handleHaiDetected();
                 } else {
-                  // If hai not detected, wait a bit then go back to listening
-                  analysisTimeoutRef.current = setTimeout(() => {
-                    if (characterTimeLeft > 0) {
-                       setGameState('listening');
-                    }
-                  }, 1000); 
+                  setGameState('listening');
                 }
               } catch (error) {
                 console.error("Error detecting hai:", error);
                 toast({ variant: 'destructive', title: 'AI Error', description: 'Could not analyze audio.' });
-                analysisTimeoutRef.current = setTimeout(() => setGameState('listening'), 1000);
+                setGameState('listening');
               }
             };
         };
@@ -193,7 +188,6 @@ export function FriendlyFacesGameClient() {
       
       mediaRecorderRef.current.start();
 
-      // Automatically stop recording after a duration
       setTimeout(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
             stopRecording();
@@ -206,23 +200,21 @@ export function FriendlyFacesGameClient() {
       setHasMicPermission(false);
       toast({ variant: 'destructive', title: 'Microphone Access Required' });
     }
-  }, [isRecording, gameState, stopRecording, handleHaiDetected, characterTimeLeft, toast]);
-  
-  // Recording loop effect
-  useEffect(() => {
-    let recordingInterval: NodeJS.Timeout;
-    if (gameState === 'listening' && !isRecording) {
-      // Start a recording cycle every 3 seconds if not already recording
-      recordingInterval = setInterval(() => {
-        startRecording();
-      }, 3000);
-    }
-    return () => {
-        if (recordingInterval) clearInterval(recordingInterval);
-    }
-  }, [gameState, isRecording, startRecording]);
+  }, [isRecording, gameState, stopRecording, handleHaiDetected, toast]);
 
   const handleStart = async () => {
+    // Check for mic permission upfront
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // We don't need to hold on to the stream, just checking for permission.
+      stream.getTracks().forEach(track => track.stop());
+      setHasMicPermission(true);
+    } catch(e) {
+      setHasMicPermission(false);
+      toast({ variant: 'destructive', title: 'Microphone permission is required to play.'});
+      return;
+    }
+
     const randomizedCharacters: {name: string; src: string}[] = [];
     let lastCharacterIndex = -1;
 
@@ -252,7 +244,6 @@ export function FriendlyFacesGameClient() {
   const handleRestart = () => {
     stopAllTimers();
     stopRecording();
-    // Clean up media recorder resources
     if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
         mediaRecorderRef.current = null;
@@ -263,12 +254,12 @@ export function FriendlyFacesGameClient() {
 
   const getStatusMessage = () => {
     if (isRecording) {
-      return { icon: <Mic className="animate-pulse text-destructive" />, text: 'Listening...' };
+      return { text: 'Listening...' };
     }
     if (gameState === 'analyzing') {
-      return { icon: <Sprout className="animate-spin" />, text: 'Analyzing...' };
+      return { text: 'Analyzing...' };
     }
-    return { icon: <Mic />, text: 'Say "Hai" to make a friend!' };
+    return { text: "Click the button and say 'Hai'!" };
   };
 
   if (gameState === 'start') {
@@ -355,13 +346,22 @@ export function FriendlyFacesGameClient() {
       {gameState === 'responding' &&  <div className="absolute inset-0 bg-black/20 flex items-center justify-center" /> }
 
       {(gameState === 'listening' || gameState === 'analyzing') && hasMicPermission !== false && (
-          <div className="absolute bottom-4 left-4 right-4 z-20">
-               <div className="max-w-md mx-auto bg-white/30 backdrop-blur-sm p-3 rounded-full text-center">
-                    <p className="font-bold text-card-foreground flex items-center justify-center gap-2">
-                        {status.icon}
-                        {status.text}
-                    </p>
-               </div>
+          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-center gap-2">
+               <p className="font-bold text-white text-center bg-black/30 backdrop-blur-sm py-2 px-4 rounded-full">
+                  {status.text}
+               </p>
+                <Button 
+                    onClick={startRecording} 
+                    disabled={isRecording || gameState === 'analyzing'}
+                    size="lg"
+                    className="rounded-full w-24 h-24"
+                >
+                    {isRecording || gameState === 'analyzing' ? (
+                       <Sprout className="w-8 h-8 animate-spin" />
+                    ) : (
+                       <Mic className="w-8 h-8" />
+                    )}
+                </Button>
           </div>
       )}
 
